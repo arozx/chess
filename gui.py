@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QLabel, QGridLayout, QWidget, QPushButton, QVBoxLayout
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 from chess_board_1 import ChessBoard  # Import the ChessBoard class
 

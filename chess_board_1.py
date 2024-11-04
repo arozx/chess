@@ -188,8 +188,6 @@ class ChessBoard:
     Returns True for a legal move
     Returns False for an illegal move
     """
-    # TODO add castling support
-
     def move_piece(self, x, y, endx, endy):
         # where there is no piece return False
         if self.board[x][y] is None:
@@ -211,7 +209,7 @@ class ChessBoard:
         if (
             ((endx, endy) not in self.board[x][y].get_valid_moves(self.board, x, y))
             and not is_enpesaunt
-            and is_castling  # returns False if no castling opportunity
+            and not is_castling  # returns False if no castling opportunity
         ):
             #! DEBUG
             print("Invalid move, not legal")
@@ -230,14 +228,24 @@ class ChessBoard:
                 elif isinstance(self.board[endx][endy - 1], Pawn):
                     self.board[endx][endy - 1] = None
 
-        # TODO check if the move is castling
+        # handle castling
+        if is_castling:
+            if endy == 2:  # queenside castling
+                self.board[endx][endy] = self.board[x][y]
+                self.board[x][y] = None
+                self.board[endx][3] = self.board[endx][0]
+                self.board[endx][0] = None
+            elif endy == 6:  # kingside castling
+                self.board[endx][endy] = self.board[x][y]
+                self.board[x][y] = None
+                self.board[endx][5] = self.board[endx][7]
+                self.board[endx][7] = None
+        else:
+            # move the piece
+            self.board[endx][endy] = self.board[x][y]
+            self.board[x][y] = None
 
-        # move the piece
-        self.board[endx][endy] = self.board[x][y]
-        self.board[x][y] = None
-
-        # update the board_cache
-
+        # *update the board_cache (ONLY NEEDED WITH NO GUI)
         """
         self.board_cache[(x * 8 + y)] = "|  |"
         self.board_cache[(endx * 8 + endy)] = (
