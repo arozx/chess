@@ -1,8 +1,9 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QLabel, QGridLayout, QWidget, QPushButton, QVBoxLayout
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QLabel, QGridLayout, QWidget, QPushButton, QVBoxLayout, QHBoxLayout
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
-from chess_board_1 import ChessBoard  # Import the ChessBoard class
+from chess_board_1 import ChessBoard
+import time
 
 class ChessPiece(QLabel):
     def __init__(self, parent=None, piece=None):
@@ -16,13 +17,21 @@ class ChessPiece(QLabel):
 class ChessBoardUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.grid_layout = QGridLayout(self)
+        self.grid_layout = QGridLayout()
         self.chess_board = ChessBoard()
         self.selected_piece = None
         self.selected_pos = None
+        self.move_count_label = QLabel("Move count: 0")
+        self.clock_label = QLabel("Elapsed time: 0.00 seconds")
         self.init_ui()
+        self.start_timer()
 
     def init_ui(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(self.move_count_label)
+        main_layout.addWidget(self.clock_label)
+        main_layout.addLayout(self.grid_layout)
+
         for row in range(8):
             for col in range(8):
                 if (row + col) % 2 == 0:
@@ -40,6 +49,15 @@ class ChessBoardUI(QWidget):
                     piece_label = ChessPiece(piece=piece)
                     button.setLayout(QVBoxLayout())
                     button.layout().addWidget(piece_label)
+
+    def start_timer(self):
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_clock)
+        self.timer.start(1000)  # Update every second
+
+    def update_clock(self):
+        elapsed_time = time.time() - self.chess_board.start_time
+        self.clock_label.setText(f"Elapsed time: {elapsed_time:.2f} seconds")
 
     def handle_click(self, row, col):
         widget = self.grid_layout.itemAtPosition(row, col).widget()
@@ -75,6 +93,7 @@ class ChessBoardUI(QWidget):
             source_button.setLayout(QVBoxLayout())
             source_button.layout().addWidget(empty_label)
             print(f"Moved from ({source_row}, {source_col}) to ({target_row}, {target_col})")
+            self.move_count_label.setText(f"Move count: {self.chess_board.move_count}")  # Update move count
         else:
             print("Move invalid")
         self.selected_piece = None

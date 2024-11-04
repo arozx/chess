@@ -1,4 +1,5 @@
 import chess
+import time
 
 from mcts import MCTS, Node
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
@@ -9,6 +10,7 @@ class ChessBoard:
         self.move_count = 0
         self.player_turn = "white"
         self.material = -1
+        self.start_time = time.time()  # Initialize start time
 
         self.board = [[None for _ in range(8)] for _ in range(8)]
 
@@ -188,6 +190,7 @@ class ChessBoard:
     Returns True for a legal move
     Returns False for an illegal move
     """
+
     def move_piece(self, x, y, endx, endy):
         # where there is no piece return False
         if self.board[x][y] is None:
@@ -349,6 +352,9 @@ class ChessBoard:
             #! DEBUG TEMP REMOVE THIS
             # self.display_board_as_coordinates()
             self.display_board_as_text()
+            print(f"Move count: {self.move_count}")  # Display move count
+            elapsed_time = time.time() - self.start_time  # Calculate elapsed time
+            print(f"Elapsed time: {elapsed_time:.2f} seconds")  # Display elapsed time
             print("White to move")
             x, y, endx, endy = map(int, input("Enter move: ").split())
             if self.move_piece(x, y, endx, endy):
