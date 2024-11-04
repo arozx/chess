@@ -12,7 +12,9 @@ class ChessPiece(QLabel):
         self.setAlignment(Qt.AlignCenter)
         self.setStyleSheet("background-color: transparent;")
         if piece:
-            self.setPixmap(QPixmap(f"media/{piece.colour}/{piece.__class__.__name__.upper()[0:1]}{piece.__class__.__name__.lower()[1::]}.svg"))
+            pixmap = QPixmap(f"media/{piece.colour}/{piece.__class__.__name__.upper()[0:1]}{piece.__class__.__name__.lower()[1::]}.svg")
+            scaled_pixmap = pixmap.scaled(60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.setPixmap(scaled_pixmap)
 
 class ChessBoardUI(QWidget):
     def __init__(self):
@@ -23,6 +25,7 @@ class ChessBoardUI(QWidget):
         self.selected_pos = None
         self.move_count_label = QLabel("Move count: 0")
         self.clock_label = QLabel("Elapsed time: 0.00 seconds")
+        self.material_count_label = QLabel("Material count: 0")  # Add material count label
         self.init_ui()
         self.start_timer()
 
@@ -30,6 +33,7 @@ class ChessBoardUI(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.addWidget(self.move_count_label)
         main_layout.addWidget(self.clock_label)
+        main_layout.addWidget(self.material_count_label)  # Add material count label to layout
         main_layout.addLayout(self.grid_layout)
 
         for row in range(8):
@@ -40,20 +44,22 @@ class ChessBoardUI(QWidget):
                     color = "gray"
                 button = QPushButton()
                 button.setFixedSize(60, 60)
-                button.setStyleSheet(f"background-color: {color};")
+                button.setStyleSheet(f"background-color: {color}; border: none;")  # Remove padding and make flat
+                button.setLayout(QVBoxLayout())  # Add layout to center pieces
+                button.layout().setAlignment(Qt.AlignCenter)  # Center the layout
                 button.clicked.connect(lambda _, r=row, c=col: self.handle_click(r, c))
                 self.grid_layout.addWidget(button, row, col)
 
                 piece = self.chess_board.board[row][col]
                 if piece:
                     piece_label = ChessPiece(piece=piece)
-                    button.setLayout(QVBoxLayout())
+                    piece_label.setAlignment(Qt.AlignCenter)  # Ensure the piece is centered
                     button.layout().addWidget(piece_label)
 
     def start_timer(self):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_clock)
-        self.timer.start(1000)  # Update every second
+        self.timer.start(10)  # Update every 10ms
 
     def update_clock(self):
         elapsed_time = time.time() - self.chess_board.start_time
@@ -78,6 +84,7 @@ class ChessBoardUI(QWidget):
 
     def move_piece(self, target_row, target_col):
         source_row, source_col = self.selected_pos
+        captured_piece = self.chess_board.board[target_row][target_col]  # Check for captured piece
         if self.chess_board.move_piece(source_row, source_col, target_row, target_col):
             target_button = self.grid_layout.itemAtPosition(target_row, target_col).widget()
             target_button.setLayout(QVBoxLayout())
@@ -94,10 +101,16 @@ class ChessBoardUI(QWidget):
             source_button.layout().addWidget(empty_label)
             print(f"Moved from ({source_row}, {source_col}) to ({target_row}, {target_col})")
             self.move_count_label.setText(f"Move count: {self.chess_board.move_count}")  # Update move count
+            if captured_piece:
+                self.update_material_count()  # Update material count if a piece was captured
         else:
             print("Move invalid")
         self.selected_piece = None
         self.selected_pos = None
+
+    def update_material_count(self):
+        material_count = self.chess_board.get_material_count()
+        self.material_count_label.setText(f"Material count: {material_count}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
