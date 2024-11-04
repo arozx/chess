@@ -12,7 +12,8 @@ class ChessBoard:
 
         self.board = [[None for _ in range(8)] for _ in range(8)]
 
-        self.board_cache = []
+        # Initialize board_cache with the correct size
+        self.board_cache = ["|  |" for _ in range(64)]
 
         # Create white pieces
         self.board[0][0] = Rook("white")
@@ -190,9 +191,14 @@ class ChessBoard:
     # TODO add castling support
 
     def move_piece(self, x, y, endx, endy):
-        # where the is no peice return False
+        # where there is no piece return False
         if self.board[x][y] is None:
             print("No piece at this position")
+            return False
+
+        # check if it's the correct turn
+        if self.board[x][y].colour != self.player_turn:
+            print(f"It's {self.player_turn}'s turn")
             return False
 
         # enpesaunt rules
@@ -205,7 +211,7 @@ class ChessBoard:
         if (
             ((endx, endy) not in self.board[x][y].get_valid_moves(self.board, x, y))
             and not is_enpesaunt
-            and is_castling  # returns False if no castling oppertunity
+            and is_castling  # returns False if no castling opportunity
         ):
             #! DEBUG
             print("Invalid move, not legal")
@@ -230,11 +236,14 @@ class ChessBoard:
         self.board[endx][endy] = self.board[x][y]
         self.board[x][y] = None
 
-        # generate the board
+        # update the board_cache
+
+        """
         self.board_cache[(x * 8 + y)] = "|  |"
         self.board_cache[(endx * 8 + endy)] = (
             "|" + self.board[endx][endy].__class__.__name__[0:2] + "|"
         )
+        """
 
         # update the material
         if self.board[endx][endy] is not None:
@@ -242,6 +251,9 @@ class ChessBoard:
 
         # increment the move count
         self.move_count += 1
+
+        # switch the turn
+        self.player_turn = "black" if self.player_turn == "white" else "white"
         return True
 
     """

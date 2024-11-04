@@ -1,109 +1,84 @@
 import sys
-
-from PyQt5.QtCore import QMimeData, Qt
-from PyQt5.QtGui import QDrag, QPixmap
-from PyQt5.QtWidgets import QApplication, QGridLayout, QLabel, QMainWindow, QWidget
-
-from chess_board_1 import ChessBoard
-
+from PyQt5.QtWidgets import QApplication, QLabel, QGridLayout, QWidget, QPushButton, QVBoxLayout
+from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtGui import QPixmap
+from chess_board_1 import ChessBoard  # Import the ChessBoard class
 
 class ChessPiece(QLabel):
-    def __init__(self, piece, color, parent=None):
+    def __init__(self, parent=None, piece=None):
         super().__init__(parent)
-        self.piece = piece
-        self.color = color
-        self.setPixmap(QPixmap(f"media/{color}/{piece}.svg"))
-        self.setScaledContents(True)
         self.setFixedSize(60, 60)
+        self.setAlignment(Qt.AlignCenter)
+        self.setStyleSheet("background-color: transparent;")
+        if piece:
+            self.setPixmap(QPixmap(f"media/{piece.colour}/{piece.__class__.__name__.upper()[0:1]}{piece.__class__.__name__.lower()[1::]}.svg"))
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.drag_start_position = event.pos()
-
-    def mouseMoveEvent(self, event):
-        if not (event.buttons() & Qt.LeftButton):
-            return
-        if (
-            event.pos() - self.drag_start_position
-        ).manhattanLength() < QApplication.startDragDistance():
-            return
-
-        drag = QDrag(self)
-        mime_data = QMimeData()
-        mime_data.setText(self.piece)
-        drag.setMimeData(mime_data)
-        drag.setPixmap(self.pixmap())
-        drag.setHotSpot(event.pos() - self.rect().topLeft())
-
-        drag.exec_(Qt.MoveAction)
-
-
-class ChessBoardUI(QMainWindow):
+class ChessBoardUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Chess")
-        self.setGeometry(100, 100, 480, 480)
-
+        self.grid_layout = QGridLayout(self)
         self.chess_board = ChessBoard()
+        self.selected_piece = None
+        self.selected_pos = None
+        self.init_ui()
 
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        self.grid_layout = QGridLayout(self.central_widget)
-
-        self.init_board()
-
-    def init_board(self):
+    def init_ui(self):
         for row in range(8):
             for col in range(8):
+                if (row + col) % 2 == 0:
+                    color = "white"
+                else:
+                    color = "gray"
+                button = QPushButton()
+                button.setFixedSize(60, 60)
+                button.setStyleSheet(f"background-color: {color};")
+                button.clicked.connect(lambda _, r=row, c=col: self.handle_click(r, c))
+                self.grid_layout.addWidget(button, row, col)
+
                 piece = self.chess_board.board[row][col]
                 if piece:
-                    piece_label = ChessPiece(piece.__class__.__name__, piece.colour)
-                    self.grid_layout.addWidget(piece_label, row, col)
-                else:
-                    empty_label = QLabel()
-                    empty_label.setFixedSize(60, 60)
-                    empty_label.setStyleSheet(
-                        "background-color: white;"
-                        if (row + col) % 2 == 0
-                        else "background-color: gray;"
-                    )
-                    self.grid_layout.addWidget(empty_label, row, col)
+                    piece_label = ChessPiece(piece=piece)
+                    button.setLayout(QVBoxLayout())
+                    button.layout().addWidget(piece_label)
 
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasText():
-            event.acceptProposedAction()
+    def handle_click(self, row, col):
+        widget = self.grid_layout.itemAtPosition(row, col).widget()
+        if widget.layout() and isinstance(widget.layout().itemAt(0).widget(), ChessPiece):
+            piece = widget.layout().itemAt(0).widget()
+            piece_obj = self.chess_board.board[row][col]
+            if piece_obj and piece_obj.colour != self.chess_board.player_turn:
+                print(f"It's {self.chess_board.player_turn}'s turn")
+                return
+            if self.selected_piece:
+                self.move_piece(row, col)
+            else:
+                self.selected_piece = piece
+                self.selected_pos = (row, col)
+                print(f"Selected piece at ({row}, {col})")
+        elif self.selected_piece:
+            self.move_piece(row, col)
 
-    def dragMoveEvent(self, event):
-        if event.mimeData().hasText():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        source = event.source()
-        if isinstance(source, ChessPiece):
-            position = event.pos()
-            target_widget = self.childAt(position)
-            if target_widget:
-                source_pos = self.grid_layout.indexOf(source)
-                target_pos = self.grid_layout.indexOf(target_widget)
-                source_row, source_col = divmod(source_pos, 8)
-                target_row, target_col = divmod(target_pos, 8)
-
-                if self.chess_board.move_piece(
-                    source_row, source_col, target_row, target_col
-                ):
-                    self.grid_layout.addWidget(source, target_row, target_col)
-                    empty_label = QLabel()
-                    empty_label.setFixedSize(60, 60)
-                    empty_label.setStyleSheet(
-                        "background-color: white;"
-                        if (source_row + source_col) % 2 == 0
-                        else "background-color: gray;"
-                    )
-                    self.grid_layout.addWidget(empty_label, source_row, source_col)
-                    event.acceptProposedAction()
-                else:
-                    event.ignore()
-
+    def move_piece(self, target_row, target_col):
+        source_row, source_col = self.selected_pos
+        if self.chess_board.move_piece(source_row, source_col, target_row, target_col):
+            target_button = self.grid_layout.itemAtPosition(target_row, target_col).widget()
+            target_button.setLayout(QVBoxLayout())
+            target_button.layout().addWidget(self.selected_piece)
+            empty_label = QLabel()
+            empty_label.setFixedSize(60, 60)
+            empty_label.setStyleSheet(
+                "background-color: white;"
+                if (source_row + source_col) % 2 == 0
+                else "background-color: gray;"
+            )
+            source_button = self.grid_layout.itemAtPosition(source_row, source_col).widget()
+            source_button.setLayout(QVBoxLayout())
+            source_button.layout().addWidget(empty_label)
+            print(f"Moved from ({source_row}, {source_col}) to ({target_row}, {target_col})")
+        else:
+            print("Move invalid")
+        self.selected_piece = None
+        self.selected_pos = None
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
