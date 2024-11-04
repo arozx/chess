@@ -71,6 +71,23 @@ class ChessBoard:
                         chess.Piece.from_symbol(piece.symbol),
                     )
         return board.fen()
+    
+    """
+    Takes no arguments
+    Returns the material as a positive or negative number
+    Value is positive for white and negative for black
+    """
+
+    def get_material_count(self, colour):
+        material = 0
+        for x in range(8):
+            for y in range(8):
+                if self.board[x][y] is not None:
+                    if self.board[x][y].colour == colour:
+                        material += self.board[x][y].weight
+                    else:
+                        material -= self.board[x][y].weight
+        return material
 
     """
     takes no arguments
