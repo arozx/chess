@@ -7,8 +7,8 @@ The best move is returned as a array of tuples
 
 import math
 import random
+import copy  # Add this import
 
-import chess
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 
 
@@ -32,7 +32,7 @@ class Node:
                 self.children.append(child)
 
     def apply_move(self, board_array, move):
-        new_board_array = [row[:] for row in board_array]
+        new_board_array = copy.deepcopy(board_array)
         from_square, to_square = move
         piece = new_board_array[from_square[0]][from_square[1]]
 

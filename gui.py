@@ -5,6 +5,7 @@ from PyQt5.QtGui import QPixmap
 from chess_board_1 import ChessBoard
 import time
 from db_connector import DBConnector
+from mcts import MCTS, Node
 
 class ChessPiece(QLabel):
     def __init__(self, parent=None, piece=None):
@@ -29,6 +30,7 @@ class ChessBoardUI(QWidget):
         self.move_count_label = QLabel("Move count: 0")
         self.clock_label = QLabel("Elapsed time: 0.00 seconds")
         self.material_count_label = QLabel("Material count: 0")
+        self.player_to_move_label = QLabel("White to move")
 
         # Initialize grid_layout and other variables
         self.grid_layout = QGridLayout()
@@ -73,6 +75,7 @@ class ChessBoardUI(QWidget):
         self.layout().addWidget(self.move_count_label)
         self.layout().addWidget(self.clock_label)
         self.layout().addWidget(self.material_count_label)
+        self.layout().addWidget(self.player_to_move_label)
         self.layout().addLayout(self.grid_layout)
         self.start_timer()  # Start the timer after login
         self.show()
@@ -122,39 +125,69 @@ class ChessBoardUI(QWidget):
                 print(f"It's {self.chess_board.player_turn}'s turn")
                 return
             if self.selected_piece:
-                self.move_piece(row, col)
+                self.move_piece(target_row=row, target_col=col)
             else:
                 self.selected_piece = piece
                 self.selected_pos = (row, col)
                 print(f"Selected piece at ({row}, {col})")
         elif self.selected_piece:
-            self.move_piece(row, col)
+            self.move_piece(target_row=row, target_col=col)
 
-    def move_piece(self, target_row, target_col):
-        source_row, source_col = self.selected_pos
-        captured_piece = self.chess_board.board[target_row][target_col]  # Check for captured piece
+    def move_piece(self, source_row=None, source_col=None, target_row=None, target_col=None, is_ai_move=False):
+        if source_row is None or source_col is None:
+            source_row, source_col = self.selected_pos
+
+        captured_piece = self.chess_board.board[target_row][target_col]
+
         if self.chess_board.move_piece(source_row, source_col, target_row, target_col):
-            target_button = self.grid_layout.itemAtPosition(target_row, target_col).widget()
-            target_button.setLayout(QVBoxLayout())
-            target_button.layout().addWidget(self.selected_piece)
-            empty_label = QLabel()
-            empty_label.setFixedSize(60, 60)
-            empty_label.setStyleSheet(
-                "background-color: white;"
-                if (source_row + source_col) % 2 == 0
-                else "background-color: gray;"
-            )
+            # Update GUI buttons
             source_button = self.grid_layout.itemAtPosition(source_row, source_col).widget()
-            source_button.setLayout(QVBoxLayout())
-            source_button.layout().addWidget(empty_label)
+            source_button.layout().itemAt(0).widget().deleteLater()
+
+            target_button = self.grid_layout.itemAtPosition(target_row, target_col).widget()
+            piece = self.chess_board.board[target_row][target_col]
+            if piece:
+                piece_label = ChessPiece(piece=piece)
+                target_button.layout().addWidget(piece_label)
+
             print(f"Moved from ({source_row}, {source_col}) to ({target_row}, {target_col})")
-            self.move_count_label.setText(f"Move count: {self.chess_board.move_count}")  # Update move count
+            self.move_count_label.setText(f"Move count: {self.chess_board.move_count}")
+
+            self.player_to_move_label.setText(f"{self.chess_board.player_turn[0:1].upper()}{self.chess_board.player_turn[1::]} to move")
             if captured_piece:
-                self.update_material_count()  # Update material count if a piece was captured
+                self.update_material_count()
+
+            # Check if it's AI's turn
+            if self.chess_board.player_turn != 'white' and not is_ai_move:
+                # Delay AI move to update GUI first
+                QTimer.singleShot(100, self.ai_move)  # Delay of 100 milliseconds
         else:
             print("Move invalid")
+
         self.selected_piece = None
         self.selected_pos = None
+
+    def ai_move(self):
+        # Create a root node with current board state
+        root_node = Node(self.chess_board.board)
+        # Initialize MCTS with root node
+        mcts = MCTS(root_node, iterations=1000, is_white=(self.chess_board.player_turn == 'white'))
+        # Run MCTS
+        mcts.run()
+        # Get best move from MCTS
+        best_move = mcts.best_move()
+        # Extract source and destination squares
+        (source_pos, dest_pos) = best_move
+        source_row, source_col = source_pos
+        target_row, target_col = dest_pos
+        # Move the piece
+        self.move_piece(
+            source_row=source_row,
+            source_col=source_col,
+            target_row=target_row,
+            target_col=target_col,
+            is_ai_move=True  # Indicate that this move is made by the AI
+        )
 
     def update_material_count(self):
         material_count = self.chess_board.get_material_count()
@@ -163,5 +196,13 @@ class ChessBoardUI(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = ChessBoardUI()
+    window.show()
+    sys.exit(app.exec_())
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = ChessBoardUI()
+    window.show()
+    window = ChessBoardUI()
+    sys.exit(app.exec_())
     window.show()
     sys.exit(app.exec_())
