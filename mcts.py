@@ -7,12 +7,9 @@ The best move is returned as a array of tuples
 
 import math
 import random
+import copy  # Add this import
 
-<<<<<<< Updated upstream
-import chess
-=======
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
->>>>>>> Stashed changes
 
 
 class Node:
@@ -35,7 +32,7 @@ class Node:
                 self.children.append(child)
 
     def apply_move(self, board_array, move):
-        new_board_array = [row[:] for row in board_array]
+        new_board_array = copy.deepcopy(board_array)
         from_square, to_square = move
         piece = new_board_array[from_square[0]][from_square[1]]
 
@@ -130,24 +127,6 @@ class MCTS:
         return best_child.move
 
 
-<<<<<<< Updated upstream
-    def evaluate(self, board):
-        # Simplified evaluation: material count
-        material = sum(
-            piece_value[piece.piece_type] for piece in board.piece_map().values()
-        )
-        return material if board.turn == chess.WHITE else -material
-
-
-piece_value = {
-    chess.PAWN: 1,
-    chess.KNIGHT: 3,
-    chess.BISHOP: 3,
-    chess.ROOK: 5,
-    chess.QUEEN: 9,
-    chess.KING: 0,  # The king's value is arbitrarily set to 0 since it cannot be captured
-}
-=======
 # Example usage
 initial_board_array = [[None for _ in range(8)] for _ in range(8)]
 
@@ -174,4 +153,3 @@ initial_board_array[7][6] = Knight("black")
 initial_board_array[7][7] = Rook("black")
 for i in range(8):
     initial_board_array[6][i] = Pawn("black")
->>>>>>> Stashed changes

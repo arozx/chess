@@ -1,4 +1,5 @@
 import chess
+import time
 
 from mcts import MCTS, Node
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
@@ -9,10 +10,12 @@ class ChessBoard:
         self.move_count = 0
         self.player_turn = "white"
         self.material = -1
+        self.start_time = time.time()  # Initialize start time
 
         self.board = [[None for _ in range(8)] for _ in range(8)]
 
-        self.board_cache = []
+        # Initialize board_cache with the correct size
+        self.board_cache = ["|  |" for _ in range(64)]
 
         # Create white pieces
         self.board[0][0] = Rook("white")
@@ -68,6 +71,23 @@ class ChessBoard:
                         chess.Piece.from_symbol(piece.symbol),
                     )
         return board.fen()
+    
+    """
+    Takes no arguments
+    Returns the material as a positive or negative number
+    Value is positive for white and negative for black
+    """
+
+    def get_material_count(self, colour):
+        material = 0
+        for x in range(8):
+            for y in range(8):
+                if self.board[x][y] is not None:
+                    if self.board[x][y].colour == colour:
+                        material += self.board[x][y].weight
+                    else:
+                        material -= self.board[x][y].weight
+        return material
 
     """
     takes no arguments
@@ -133,20 +153,25 @@ class ChessBoard:
     returns True if move is valid
     """
 
-    def enpesaunt(self, x, y, endx, endy, colour):
+    def enpesaunt(self, x, y, colour):
         try:
             if isinstance(self.board[x][y], Pawn):
+                direction = 1 if colour == "white" else -1
                 if (
-                    isinstance(self.board[endx][endy + 1], Pawn)
-                    and colour != self.board[endx][endy + 1].colour
+                    isinstance(self.board[x][y + 1], Pawn)
+                    and self.board[x][y + 1].colour != colour
+                    and self.board[x][y + 1].first_move
+                    and self.board[x + direction][y + 1] is None
                 ):
-                    print("pawn on ", endx, endy + 1)
+                    print("pawn on ", x, y + 1)
                     return True
                 elif (
-                    isinstance(self.board[endx][endy - 1], Pawn)
-                    and colour != self.board[endx][endy - 1].colour
+                    isinstance(self.board[x][y - 1], Pawn)
+                    and self.board[x][y - 1].colour != colour
+                    and self.board[x][y - 1].first_move
+                    and self.board[x + direction][y - 1] is None
                 ):
-                    print("pawn on", endx, endy - 1)
+                    print("pawn on", x, y - 1)
                     return True
         except IndexError:
             # raised when enpseant is checked for outside the board
@@ -187,16 +212,20 @@ class ChessBoard:
     Returns True for a legal move
     Returns False for an illegal move
     """
-    # TODO add castling support
 
     def move_piece(self, x, y, endx, endy):
-        # where the is no peice return False
+        # where there is no piece return False
         if self.board[x][y] is None:
             print("No piece at this position")
             return False
 
+        # check if it's the correct turn
+        if self.board[x][y].colour != self.player_turn:
+            print(f"It's {self.player_turn}'s turn")
+            return False
+
         # enpesaunt rules
-        is_enpesaunt = self.enpesaunt(x, y, endx, endy, self.board[x][y].colour)
+        is_enpesaunt = self.enpesaunt(x, y, self.board[x][y].colour)
 
         # castling rules
         is_castling = self.castling(self.board, self.board[x][y].colour)
@@ -205,7 +234,7 @@ class ChessBoard:
         if (
             ((endx, endy) not in self.board[x][y].get_valid_moves(self.board, x, y))
             and not is_enpesaunt
-            and is_castling  # returns False if no castling oppertunity
+            and not is_castling  # returns False if no castling opportunity
         ):
             #! DEBUG
             print("Invalid move, not legal")
@@ -224,17 +253,30 @@ class ChessBoard:
                 elif isinstance(self.board[endx][endy - 1], Pawn):
                     self.board[endx][endy - 1] = None
 
-        # TODO check if the move is castling
+        # handle castling
+        if is_castling:
+            if endy == 2:  # queenside castling
+                self.board[endx][endy] = self.board[x][y]
+                self.board[x][y] = None
+                self.board[endx][3] = self.board[endx][0]
+                self.board[endx][0] = None
+            elif endy == 6:  # kingside castling
+                self.board[endx][endy] = self.board[x][y]
+                self.board[x][y] = None
+                self.board[endx][5] = self.board[endx][7]
+                self.board[endx][7] = None
+        else:
+            # move the piece
+            self.board[endx][endy] = self.board[x][y]
+            self.board[x][y] = None
 
-        # move the piece
-        self.board[endx][endy] = self.board[x][y]
-        self.board[x][y] = None
-
-        # generate the board
+        # *update the board_cache (ONLY NEEDED WITH NO GUI)
+        """
         self.board_cache[(x * 8 + y)] = "|  |"
         self.board_cache[(endx * 8 + endy)] = (
             "|" + self.board[endx][endy].__class__.__name__[0:2] + "|"
         )
+        """
 
         # update the material
         if self.board[endx][endy] is not None:
@@ -242,6 +284,9 @@ class ChessBoard:
 
         # increment the move count
         self.move_count += 1
+
+        # switch the turn
+        self.player_turn = "black" if self.player_turn == "white" else "white"
         return True
 
     """
@@ -329,6 +374,9 @@ class ChessBoard:
             #! DEBUG TEMP REMOVE THIS
             # self.display_board_as_coordinates()
             self.display_board_as_text()
+            print(f"Move count: {self.move_count}")  # Display move count
+            elapsed_time = time.time() - self.start_time  # Calculate elapsed time
+            print(f"Elapsed time: {elapsed_time:.2f} seconds")  # Display elapsed time
             print("White to move")
             x, y, endx, endy = map(int, input("Enter move: ").split())
             if self.move_piece(x, y, endx, endy):
