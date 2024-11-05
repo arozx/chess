@@ -4,7 +4,6 @@ import pytest
 
 from db_connector import DBConnector
 
-
 @pytest.fixture
 def db():
     db_path = "/tmp/test_db.sqlite"

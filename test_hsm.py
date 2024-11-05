@@ -1,7 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
 from hsm import HSM
-import unittest
 
 class TestHSM(unittest.TestCase):
     def setUp(self):
