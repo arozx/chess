@@ -131,6 +131,7 @@ class DBConnector:
                 fen TEXT
             )
         """)
+        self.conn.commit()
 
     """
     Adds game to the games table
