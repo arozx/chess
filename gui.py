@@ -1,9 +1,10 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QLabel, QGridLayout, QWidget, QPushButton, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QLabel, QGridLayout, QWidget, QPushButton, QVBoxLayout, QLineEdit
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
 from chess_board_1 import ChessBoard
 import time
+from db_connector import DBConnector
 
 class ChessPiece(QLabel):
     def __init__(self, parent=None, piece=None):
@@ -19,15 +20,62 @@ class ChessPiece(QLabel):
 class ChessBoardUI(QWidget):
     def __init__(self):
         super().__init__()
+        self.db_connector = DBConnector('chess.db')
+        self.db_connector.create_users_table()
+        self.db_connector.create_logins_table()
+        self.init_login_ui()
+
+        # Initialize labels
+        self.move_count_label = QLabel("Move count: 0")
+        self.clock_label = QLabel("Elapsed time: 0.00 seconds")
+        self.material_count_label = QLabel("Material count: 0")
+
+        # Initialize grid_layout and other variables
         self.grid_layout = QGridLayout()
         self.chess_board = ChessBoard()
         self.selected_piece = None
         self.selected_pos = None
-        self.move_count_label = QLabel("Move count: 0")
-        self.clock_label = QLabel("Elapsed time: 0.00 seconds")
-        self.material_count_label = QLabel("Material count: 0")  # Add material count label
-        self.init_ui()
-        self.start_timer()
+
+    def init_login_ui(self):
+        self.login_widget = QWidget()
+        self.login_layout = QVBoxLayout(self.login_widget)
+        
+        self.username_label = QLabel("Username:")
+        self.username_input = QLineEdit()
+        self.password_label = QLabel("Password:")
+        self.password_input = QLineEdit()
+        self.password_input.setEchoMode(QLineEdit.Password)
+        
+        self.login_button = QPushButton("Login")
+        self.login_button.clicked.connect(self.handle_login)
+        
+        self.login_layout.addWidget(self.username_label)
+        self.login_layout.addWidget(self.username_input)
+        self.login_layout.addWidget(self.password_label)
+        self.login_layout.addWidget(self.password_input)
+        self.login_layout.addWidget(self.login_button)
+        
+        self.login_widget.show()
+
+    def handle_login(self):
+        username = self.username_input.text()
+        password = self.password_input.text()
+        if self.db_connector.verify_user(username, password):
+            self.db_connector.insert_login_attempt(username, time.time())
+            self.login_widget.hide()
+            self.show_main_ui()
+        else:
+            print("Invalid username or password")
+
+    def show_main_ui(self):
+        self.init_ui()  # Initialize the main game UI
+        self.setLayout(QVBoxLayout())
+        self.layout().addWidget(self.move_count_label)
+        self.layout().addWidget(self.clock_label)
+        self.layout().addWidget(self.material_count_label)
+        self.layout().addLayout(self.grid_layout)
+        self.start_timer()  # Start the timer after login
+        self.show()
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
