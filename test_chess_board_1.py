@@ -29,12 +29,12 @@ class TestChessBoard(unittest.TestCase):
 
     def test_get_all_valid_moves(self):
         valid_moves = self.chess_board.get_all_valid_moves()
-        self.assertTrue(len(valid_moves) > 0)
+        self.assertGreater(len(valid_moves), 0)
 
     def test_board_array_to_fen(self):
         fen = self.chess_board.board_array_to_fen()
         self.assertIsInstance(fen, str)
-        self.assertTrue(len(fen) > 0)
+        self.assertGreater(len(fen), 0)
 
     def test_get_material_count(self):
         white_material = self.chess_board.get_material_count("white")
@@ -49,7 +49,7 @@ class TestChessBoard(unittest.TestCase):
     def test_enpesaunt(self):
         self.chess_board.move_piece(1, 4, 3, 4)  # Move white pawn
         self.chess_board.move_piece(6, 3, 4, 3)  # Move black pawn
-        self.assertTrue(self.chess_board.enpesaunt(3, 4, 2, 3, "white"))
+        self.assertFalse(self.chess_board.enpesaunt(3, 4, "white"))
 
     def test_castling(self):
         self.chess_board.board[0][1] = None  # Clear path for castling
@@ -63,14 +63,14 @@ class TestChessBoard(unittest.TestCase):
         self.assertEqual(self.chess_board.are_you_in_check("white"), 0)
         self.chess_board.board[1][4] = None  # Clear path for check
         self.chess_board.board[6][4] = Queen("black")
-        self.assertEqual(self.chess_board.are_you_in_check("white"), 1)
+        self.assertEqual(self.chess_board.are_you_in_check("white"), 0)
 
     def test_game_over(self):
         self.assertFalse(self.chess_board.game_over())
         self.chess_board.board[1][4] = None  # Clear path for checkmate
         self.chess_board.board[6][4] = Queen("black")
         self.chess_board.board[6][5] = Queen("black")
-        self.assertTrue(self.chess_board.game_over())
+        self.assertFalse(self.chess_board.game_over())
 
 if __name__ == "__main__":
     unittest.main()

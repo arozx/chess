@@ -153,20 +153,25 @@ class ChessBoard:
     returns True if move is valid
     """
 
-    def enpesaunt(self, x, y, endx, endy, colour):
+    def enpesaunt(self, x, y, colour):
         try:
             if isinstance(self.board[x][y], Pawn):
+                direction = 1 if colour == "white" else -1
                 if (
-                    isinstance(self.board[endx][endy + 1], Pawn)
-                    and colour != self.board[endx][endy + 1].colour
+                    isinstance(self.board[x][y + 1], Pawn)
+                    and self.board[x][y + 1].colour != colour
+                    and self.board[x][y + 1].first_move
+                    and self.board[x + direction][y + 1] is None
                 ):
-                    print("pawn on ", endx, endy + 1)
+                    print("pawn on ", x, y + 1)
                     return True
                 elif (
-                    isinstance(self.board[endx][endy - 1], Pawn)
-                    and colour != self.board[endx][endy - 1].colour
+                    isinstance(self.board[x][y - 1], Pawn)
+                    and self.board[x][y - 1].colour != colour
+                    and self.board[x][y - 1].first_move
+                    and self.board[x + direction][y - 1] is None
                 ):
-                    print("pawn on", endx, endy - 1)
+                    print("pawn on", x, y - 1)
                     return True
         except IndexError:
             # raised when enpseant is checked for outside the board
@@ -220,7 +225,7 @@ class ChessBoard:
             return False
 
         # enpesaunt rules
-        is_enpesaunt = self.enpesaunt(x, y, endx, endy, self.board[x][y].colour)
+        is_enpesaunt = self.enpesaunt(x, y, self.board[x][y].colour)
 
         # castling rules
         is_castling = self.castling(self.board, self.board[x][y].colour)
