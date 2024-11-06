@@ -1,5 +1,6 @@
 import hashlib
 import sqlite3
+import os
 
 
 class DBConnector:
@@ -48,7 +49,8 @@ class DBConnector:
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
             username TEXT,
-            password_hash TEXT
+            password_hash TEXT,
+            salt TEXT
         )""")
         self.conn.commit()
 
@@ -60,8 +62,9 @@ class DBConnector:
     """
 
     def insert_user(self, username, password):
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        query = f"INSERT INTO users (username, password_hash) VALUES ('{username}', '{password_hash}')"
+        salt = os.urandom(16).hex()
+        password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
+        query = f"INSERT INTO users (username, password_hash, salt) VALUES ('{username}', '{password_hash}', '{salt}')"
         self.__execute_query(query)
 
     """
@@ -70,10 +73,14 @@ class DBConnector:
     """
 
     def verify_user(self, username, password):
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        query = f"SELECT * FROM users WHERE username = '{username}' AND password_hash = '{password_hash}'"
+        query = f"SELECT password_hash, salt FROM users WHERE username = '{username}'"
         cursor = self.__execute_query(query)
-        return cursor.fetchone() is not None
+        result = cursor.fetchone()
+        if result:
+            stored_hash, salt = result
+            password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
+            return stored_hash == password_hash
+        return False
 
     """
     Table for user login times
