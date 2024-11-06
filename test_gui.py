@@ -2,6 +2,7 @@ import unittest
 from PyQt5.QtWidgets import QApplication
 from gui import ChessBoardUI
 from db_connector import DBConnector
+from os import remove
 
 class TestChessBoardUI(unittest.TestCase):
     @classmethod
@@ -17,6 +18,7 @@ class TestChessBoardUI(unittest.TestCase):
 
     def tearDown(self):
         self.db_connector._disconnect()
+        remove("test_chess.db")
 
     def test_initialization(self):
         self.assertIsNotNone(self.ui.move_count_label)
@@ -43,6 +45,7 @@ class TestChessBoardUI(unittest.TestCase):
         self.ui.move_piece(1, 0, 2, 0)
         self.assertEqual(self.ui.move_count_label.text(), "Move count: 0")
         self.assertEqual(self.ui.player_to_move_label.text(), "White to move")
-        
+
+
 if __name__ == "__main__":
     unittest.main()
