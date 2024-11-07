@@ -30,29 +30,7 @@ class TestEvalBoard(unittest.TestCase):
     def test_eval_board_standard(self):
         # Case where board is standard starting position
         board = [[None] * 8 for _ in range(8)]
-
-        board[0][0] = Rook("white")
-        board[0][1] = Knight("white")
-        board[0][2] = Bishop("white")
-        board[0][4] = Queen("white")
-        board[0][3] = King("white")
-        board[0][5] = Bishop("white")
-        board[0][6] = Knight("white")
-        board[0][7] = Rook("white")
-        for i in range(8):
-            board[1][i] = Pawn("white")
-
-        # Create black pieces
-        board[7][0] = Rook("black")
-        board[7][1] = Knight("black")
-        board[7][2] = Bishop("black")
-        board[7][4] = Queen("black")
-        board[7][3] = King("black")
-        board[7][5] = Bishop("black")
-        board[7][6] = Knight("black")
-        board[7][7] = Rook("black")
-        for i in range(8):
-            board[6][i] = Pawn("black")
+        board = self.default_board(board)
 
         colour = "white"
 
@@ -84,28 +62,7 @@ class TestEvalBoard(unittest.TestCase):
     def test_eval_board_mixed(self):
         # Case where board has a mix of pieces
         board = [[None] * 8 for _ in range(8)]
-
-        board[0][0] = Rook("white")
-        board[0][1] = Knight("white")
-        board[0][2] = Bishop("white")
-        board[0][4] = Queen("white")
-        board[0][3] = King("white")
-        board[0][5] = Bishop("white")
-        board[0][6] = Knight("white")
-        board[0][7] = Rook("white")
-        for i in range(8):
-            board[1][i] = Pawn("white")
-
-        board[7][0] = Rook("black")
-        board[7][1] = Knight("black")
-        board[7][2] = Bishop("black")
-        board[7][4] = Queen("black")
-        board[7][3] = King("black")
-        board[7][5] = Bishop("black")
-        board[7][6] = Knight("black")
-        board[7][7] = Rook("black")
-        for i in range(8):
-            board[6][i] = Pawn("black")
+        board = self.default_board(board)
 
         board[4][4] = Knight("white")
         board[3][3] = Bishop("black")
@@ -119,7 +76,16 @@ class TestEvalBoard(unittest.TestCase):
     def test_eval_board_normalised(self):
         # Case where board score is normalised
         board = [[None] * 8 for _ in range(8)]
+        board = self.default_board(board)
 
+        colour = "white"
+
+        # Call the eval_board function
+        score = eval_board(board, colour, True)
+        self.assertGreater(score, 0)
+        self.assertLess(score, 1)
+
+    def default_board(self, board):
         board[0][0] = Rook("white")
         board[0][1] = Knight("white")
         board[0][2] = Bishop("white")
@@ -142,12 +108,7 @@ class TestEvalBoard(unittest.TestCase):
         for i in range(8):
             board[6][i] = Pawn("black")
 
-        colour = "white"
-
-        # Call the eval_board function
-        score = eval_board(board, colour, True)
-        self.assertGreater(score, 0)
-        self.assertLess(score, 1)
+        return board
 
 
 if __name__ == "__main__":
