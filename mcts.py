@@ -6,7 +6,6 @@ The best move is returned as a array of tuples
 """
 
 import math
-import random
 import copy
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
