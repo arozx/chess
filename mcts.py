@@ -7,10 +7,10 @@ The best move is returned as a array of tuples
 
 import math
 import random
-import copy  # Add this import
+import copy
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
-
+from eval_board import eval_board
 
 class Node:
     def __init__(self, board_array, move=None, parent=None):
@@ -86,7 +86,9 @@ class MCTS:
         node.expand(all_valid_moves)
 
     def simulate(self, node):
-        return random.uniform(0, 1)
+        print(node)
+        board_array = node.board_array
+        return eval_board(board_array, "black", True)
 
     def backpropagate(self, node, value):
         while node is not None:

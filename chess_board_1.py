@@ -106,7 +106,7 @@ class ChessBoard:
                         chess.Piece.from_symbol(piece.symbol),
                     )
         return board.fen()
-    
+
     """
     Takes no arguments
     Returns the material as a positive or negative number

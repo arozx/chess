@@ -1,4 +1,4 @@
-def eval_board(board, colour):
+def eval_board(board, colour, score_normalised):
     # Perform a static evaluation of the board
     # Uses the NEGA-MAX framework
     # Returns a score for the board relative to the player to move
@@ -144,9 +144,12 @@ def eval_board(board, colour):
 
     score -= 0.5 * (doubled + blocked + isolated)
     score += 0.1 * mobility
+    
+    if score_normalised:
+        # modify score to be between 0 - 1
+        score = 1 / (1 + 10 ** (-score / 400))
 
     # log the score
-    if score > 0:
-        print(f"Evaluated board score: {score}")
+    print(f"Evaluated board score: {score}")
 
     return score
