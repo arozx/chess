@@ -27,6 +27,20 @@ class TestChessBoard(unittest.TestCase):
         self.assertIsInstance(self.chess_board.board[7][6], Knight)
         self.assertIsInstance(self.chess_board.board[7][7], Rook)
 
+    def test_load_openings(self):
+        openings = self.chess_board.load_openings("./openings/all.tsv")
+        self.assertIsInstance(openings, dict)
+        self.assertGreater(len(openings), 0)
+
+    def test_get_opening(self):
+        self.chess_board.board[0][1] = None  # Clear path for opening move
+        self.chess_board.board[1][4] = None  # Clear path for opening move
+        self.chess_board.move_piece(1, 4, 3, 4)  # Move white pawn
+        self.chess_board.move_piece(6, 3, 4, 3)  # Move black pawn
+        opening_name = self.chess_board.get_opening()
+        self.assertIsInstance(opening_name, str)
+        self.assertEqual(opening_name, "Unknown Opening")
+
     def test_get_all_valid_moves(self):
         valid_moves = self.chess_board.get_all_valid_moves()
         self.assertGreater(len(valid_moves), 0)

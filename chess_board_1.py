@@ -1,5 +1,6 @@
 import chess
 import time
+import csv
 
 from mcts import MCTS, Node
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
@@ -45,6 +46,39 @@ class ChessBoard:
         self.root_node = Node(self.board)
         self.mcts = MCTS(self.root_node)
 
+        self.openings = self.load_openings("./openings/all.tsv")
+
+    def load_openings(self, file_path):
+        openings = {}
+        print("path:", file_path)
+        with open(file_path, newline="", encoding="utf-8") as tsvfile:
+            reader = csv.reader(tsvfile, delimiter="\t")
+            for row in reader:
+                if len(row) >= 3:
+                    name = row[1]
+                    moves = row[2]
+                    openings[moves] = name
+        return openings
+
+    def get_opening(self):
+        current_moves = " ".join(self.get_epd())
+        for moves, name in self.openings.items():
+            if current_moves.startswith(moves):
+                return name
+        return "Unknown Opening"
+
+    """
+    Takes no arguments
+    Returns a EPD string
+    """
+
+    def get_epd(self):
+        # convert to EPD (FEN with no move numbers)
+        board = chess.Board(self.board_array_to_fen())
+        epd = board.epd()
+        print(epd)
+        return epd
+
     """
     Takes no arguments
     Returns an array of moves that are legal
@@ -52,6 +86,7 @@ class ChessBoard:
 
     def get_all_valid_moves(self):
         board = chess.Board(self.board_array_to_fen())
+        print([move.uci() for move in board.legal_moves])
         return [move.uci() for move in board.legal_moves]
 
     """
@@ -71,7 +106,7 @@ class ChessBoard:
                         chess.Piece.from_symbol(piece.symbol),
                     )
         return board.fen()
-    
+
     """
     Takes no arguments
     Returns the material as a positive or negative number
