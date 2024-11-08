@@ -1,7 +1,6 @@
 import unittest
 from chess_board_1 import ChessBoard
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
-import builtins
 
 class TestChessBoard(unittest.TestCase):
     def setUp(self):
