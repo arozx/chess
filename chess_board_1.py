@@ -305,6 +305,14 @@ class ChessBoard:
             self.board[endx][endy] = self.board[x][y]
             self.board[x][y] = None
 
+        # handle pawn promotion
+        if isinstance(self.board[endx][endy], Pawn):
+            match endx:
+                case 7:
+                    self.promote_pawn(endx, endy, piece=Queen)
+                case 0:
+                    self.promote_pawn(endx, endy, piece=Queen)
+
         # *update the board_cache (ONLY NEEDED WITH NO GUI)
         """
         self.board_cache[(x * 8 + y)] = "|  |"
@@ -323,6 +331,17 @@ class ChessBoard:
         # switch the turn
         self.player_turn = "black" if self.player_turn == "white" else "white"
         return True
+
+    """
+    Promotes a pawn to a queen, rook, bishop, or knight
+    base on piece
+    """
+
+    def promote_pawn(self, x, y, piece):
+        print(self.board[x][y].__class__.__name__)
+
+        colour = self.board[x][y].colour
+        self.board[x][y] = piece(colour)
 
     """
     Takes No arguments and returns a number based on weather the player is in check

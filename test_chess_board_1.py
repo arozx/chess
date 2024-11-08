@@ -1,6 +1,7 @@
 import unittest
 from chess_board_1 import ChessBoard
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
+import builtins
 
 class TestChessBoard(unittest.TestCase):
     def setUp(self):
@@ -85,6 +86,14 @@ class TestChessBoard(unittest.TestCase):
         self.chess_board.board[6][4] = Queen("black")
         self.chess_board.board[6][5] = Queen("black")
         self.assertFalse(self.chess_board.game_over())
+
+    def test_pawn_promotion(self):
+        self.chess_board.board[6][0] = None
+        self.chess_board.board[7][0] = None
+        self.chess_board.board[7][0] = Pawn("white")  # make white pawn
+        self.chess_board.promote_pawn(7, 0, Queen)
+        self.assertIsInstance(self.chess_board.board[7][0], Queen)
+
 
 if __name__ == "__main__":
     unittest.main()
