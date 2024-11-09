@@ -85,7 +85,6 @@ class MCTS:
         node.expand(all_valid_moves)
 
     def simulate(self, node):
-        print(node)
         board_array = node.board_array
         return eval_board(board_array, "black", True)
 
