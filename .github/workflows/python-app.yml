@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12"]
     outputs:
       cache-hit: ${{ steps.cache-python.outputs.cache-hit }}
 
@@ -30,7 +30,7 @@ jobs:
       # Cache Python packages
       - name: Cache dependencies
         id: cache-python
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
@@ -50,7 +50,7 @@ jobs:
     needs: setup
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12"]
 
     steps:
       # Checkout repository
@@ -58,7 +58,7 @@ jobs:
 
       # Use cached dependencies from the setup job
       - name: Restore cached dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
@@ -79,7 +79,7 @@ jobs:
     needs: setup
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12"]
 
     steps:
       # Checkout repository
@@ -87,7 +87,7 @@ jobs:
 
       # Use cached dependencies from the setup job
       - name: Restore cached dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
@@ -109,7 +109,7 @@ jobs:
     needs: [setup, lint, test]
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12"]
 
     steps:
       # Checkout repository
@@ -117,7 +117,7 @@ jobs:
 
       # Use cached dependencies from the setup job
       - name: Restore cached dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
