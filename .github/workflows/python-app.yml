@@ -7,47 +7,122 @@ on:
     branches: ["*"]
 
 jobs:
-  build:
-    name: Build, Lint, Test, and Analyze
+  # Job to set up dependencies and cache Python packages
+  setup:
+    name: Set up Python and Cache Dependencies
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"]
-    
+        python-version: ["3.11", "3.12", "3.13"]
+    outputs:
+      cache-hit: ${{ steps.cache-python.outputs.cache-hit }}
+
     steps:
       # Checkout repository
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Disable shallow clones for better analysis relevance
 
       # Set up Python
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-      
-      # Install dependencies
+
+      # Cache Python packages
+      - name: Cache dependencies
+        id: cache-python
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+
+      # Install dependencies if cache miss
       - name: Install dependencies
+        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           pip install -r requirements.txt
 
-      # Lint code with Ruff
+  # Linting job
+  lint:
+    name: Lint Code with Ruff
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      # Checkout repository
+      - uses: actions/checkout@v4
+
+      # Use cached dependencies from the setup job
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+
+      # Install Ruff
+      - name: Install Ruff
+        run: pip install ruff
+
+      # Lint the code
       - name: Lint with Ruff
-        run: |
-          pip install ruff
-          ruff check .
+        run: ruff check .
         continue-on-error: true
 
-      # Run tests with pytest
-      - name: Test with pytest
+  # Testing job
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      # Checkout repository
+      - uses: actions/checkout@v4
+
+      # Use cached dependencies from the setup job
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+
+      # Install additional test dependencies
+      - name: Install test dependencies
         run: |
           pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess
           sudo apt-get install -y xvfb
-          # Run tests with a virtual display for PyQt5 compatibility
-          tox
 
-      # SonarQube analysis
+      # Run tests with a virtual display for PyQt5 compatibility
+      - name: Test with pytest
+        run: tox
+
+  # SonarQube analysis job
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    needs: [setup, lint, test]
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      # Checkout repository
+      - uses: actions/checkout@v4
+
+      # Use cached dependencies from the setup job
+      - name: Restore cached dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+
+      # Run SonarQube analysis
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v3
         env:
