@@ -1,27 +1,62 @@
-name: Build
+name: Build and Test with SonarQube Analysis
 
 on:
   push:
-    branches:
-      - main
-
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
 
 jobs:
   build:
-    name: Build and analyze
+    name: Build, Lint, Test, and Analyze
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
     
     steps:
+      # Checkout repository
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - uses: sonarsource/sonarqube-scan-action@v3
+          fetch-depth: 0  # Disable shallow clones for better analysis relevance
+
+      # Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      # Lint code with Ruff
+      - name: Lint with Ruff
+        run: |
+          pip install ruff
+          ruff check .
+        continue-on-error: true
+
+      # Run tests with pytest
+      - name: Test with pytest
+        run: |
+          pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess
+          sudo apt-get install -y xvfb
+          # Run tests with a virtual display for PyQt5 compatibility
+          tox
+
+      # SonarQube analysis
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      # If you wish to fail your job when the Quality Gate is red, uncomment the
-      # following lines. This would typically be used to fail a deployment.
-      # - uses: sonarsource/sonarqube-quality-gate-action@master
+      
+      # Optional: Fail job if Quality Gate fails
+      # - name: SonarQube Quality Gate
+      #   uses: sonarsource/sonarqube-quality-gate-action@master
       #   timeout-minutes: 5
       #   env:
       #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
