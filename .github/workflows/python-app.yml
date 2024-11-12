@@ -72,6 +72,8 @@ jobs:
         run: ruff check .
         continue-on-error: true
 
+  
+
   # Testing job
   test:
     name: Run Tests
@@ -82,28 +84,26 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     steps:
-      # Checkout repository
       - uses: actions/checkout@v4
 
-      # Use cached dependencies from the setup job
       - name: Restore cached dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
 
-      # Install additional test dependencies
       - name: Install test dependencies
         run: |
           pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess
           sudo apt-get install -y xvfb
 
-      # Run tests with a virtual display for PyQt5 compatibility
+      # Set up TOXENV and run tox with formatted python version
       - name: Test with pytest
-        run: tox
-        env:
-          TOXENV: "py${{ matrix.python-version | replace('.', '') }}"
-          
+        run: |
+          export TOXENV=py${{ matrix.python-version//./ }}
+          echo "Running tox with TOXENV=$TOXENV"
+          tox
+
   # SonarQube analysis job
   sonarqube:
     name: SonarQube Analysis
