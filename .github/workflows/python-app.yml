@@ -1,44 +1,27 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
-name: Python application
+name: Build
 
 on:
   push:
-    branches: ["*"]
-  pull_request:
-    branches: ["*"]
+    branches:
+      - main
+
 
 jobs:
-  sonarcloud:
+  build:
+    name: Build and analyze
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11"]
+    
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-      - run: |
-          pip install -r requirements.txt
-
-      - name: Lint with Ruff
-        run: |
-          pip install ruff
-          ruff check .
-        continue-on-error: true
-
-      - name: Test with pytest
-        run: |
-          pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess
-          sudo apt-get install -y xvfb
-          # Run tests with a virtual display to allow PyQt5 to run
-          tox
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - uses: sonarsource/sonarqube-scan-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      # If you wish to fail your job when the Quality Gate is red, uncomment the
+      # following lines. This would typically be used to fail a deployment.
+      # - uses: sonarsource/sonarqube-quality-gate-action@master
+      #   timeout-minutes: 5
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
