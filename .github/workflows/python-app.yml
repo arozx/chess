@@ -102,8 +102,8 @@ jobs:
       - name: Test with pytest
         run: tox
         env:
-          TOXENV: "py${{ matrix.python-version }}"
-
+          TOXENV: "py${{ matrix.python-version | replace('.', '') }}"
+          
   # SonarQube analysis job
   sonarqube:
     name: SonarQube Analysis
