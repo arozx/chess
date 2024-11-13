@@ -96,7 +96,6 @@ jobs:
       - name: Run tests with coverage
         run: |
           tox -e py
-          pytest --cov=. --cov-report=xml:coverage.xml
 
       # Upload coverage report
       - name: Upload coverage report
