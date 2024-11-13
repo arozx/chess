@@ -136,9 +136,6 @@ jobs:
       # Run SonarQube analysis
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v3
-        with:
-          args: >
-            -Dsonar.python.coverage.reportPaths=coverage.xml
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
