@@ -95,11 +95,7 @@ jobs:
       # Run tests with coverage
       - name: Run tests with coverage
         run: |
-          python_version=${{ matrix.python-version }}
-          TOXENV="py${python_version//./}"
-          export TOXENV
-          echo "Running tox with TOXENV=$TOXENV"
-          tox
+          tox -e py
           pytest --cov=. --cov-report=xml:coverage.xml
 
       # Upload coverage report
