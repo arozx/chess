@@ -14,8 +14,6 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
-    outputs:
-      cache-hit: ${{ steps.cache-python.outputs.cache-hit }}
 
     steps:
       # Checkout repository
@@ -37,9 +35,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-${{ matrix.python-version }}-
 
-      # Install dependencies if cache miss
+      # Install dependencies
       - name: Install dependencies
-        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           pip install -r requirements.txt
 
@@ -56,7 +53,7 @@ jobs:
       # Checkout repository
       - uses: actions/checkout@v4
 
-      # Use cached dependencies from the setup job
+      # Restore cached dependencies
       - name: Restore cached dependencies
         uses: actions/cache@v4
         with:
@@ -95,13 +92,10 @@ jobs:
           pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess
           sudo apt-get install -y xvfb
 
-      # Set up TOXENV and run tox with formatted python version
+      # Run tests with coverage
       - name: Run tests with coverage
         run: |
-          export TOXENV=py${{ matrix.python-version//./ }}
-          echo "Running tox with TOXENV=$TOXENV"
-          tox
-          pytest --cov=. --cov-report=xml:coverage.xml
+          tox -e py
 
       # Upload coverage report
       - name: Upload coverage report
@@ -115,6 +109,7 @@ jobs:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
     needs: [setup, lint, test]
+
     steps:
       # Checkout repository
       - uses: actions/checkout@v4
@@ -125,19 +120,22 @@ jobs:
         with:
           name: coverage-report
 
-      # Use cached dependencies from the setup job
+      # Restore cached dependencies
       - name: Restore cached dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+      # Set up Python (Specify a version since matrix is not used here)
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       # Run SonarQube analysis
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v3
-        with:
-          args: >
-            -Dsonar.python.coverage.reportPaths=coverage.xml
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
