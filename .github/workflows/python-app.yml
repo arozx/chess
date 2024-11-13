@@ -72,8 +72,6 @@ jobs:
         run: ruff check .
         continue-on-error: true
 
-  
-
   # Testing job
   test:
     name: Run Tests
@@ -98,24 +96,34 @@ jobs:
           sudo apt-get install -y xvfb
 
       # Set up TOXENV and run tox with formatted python version
-      - name: Test with pytest
+      - name: Run tests with coverage
         run: |
           export TOXENV=py${{ matrix.python-version//./ }}
           echo "Running tox with TOXENV=$TOXENV"
           tox
+          pytest --cov=. --cov-report=xml:coverage.xml
+
+      # Upload coverage report
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.xml
 
   # SonarQube analysis job
   sonarqube:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
     needs: [setup, lint, test]
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
-
     steps:
       # Checkout repository
       - uses: actions/checkout@v4
+
+      # Download coverage report from test job
+      - name: Download coverage report
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-report
 
       # Use cached dependencies from the setup job
       - name: Restore cached dependencies
@@ -127,10 +135,13 @@ jobs:
       # Run SonarQube analysis
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v3
+        with:
+          args: >
+            -Dsonar.python.coverage.reportPaths=coverage.xml
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      
+
       # Optional: Fail job if Quality Gate fails
       # - name: SonarQube Quality Gate
       #   uses: sonarsource/sonarqube-quality-gate-action@master
