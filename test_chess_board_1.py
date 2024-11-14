@@ -86,5 +86,13 @@ class TestChessBoard(unittest.TestCase):
         self.chess_board.board[6][5] = Queen("black")
         self.assertFalse(self.chess_board.game_over())
 
+    def test_pawn_promotion(self):
+        self.chess_board.board[6][0] = None
+        self.chess_board.board[7][0] = None
+        self.chess_board.board[7][0] = Pawn("white")  # make white pawn
+        self.chess_board.promote_pawn(7, 0, Queen)
+        self.assertIsInstance(self.chess_board.board[7][0], Queen)
+
+
 if __name__ == "__main__":
     unittest.main()

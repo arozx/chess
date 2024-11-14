@@ -1,17 +1,15 @@
-import os
-
 import pytest
+import tempfile
 
 from db_connector import DBConnector
 
 @pytest.fixture
 def db():
-    db_path = "/tmp/test_db.sqlite"
-    connector = DBConnector(db_path)
-    yield connector
-    connector._disconnect()
-    os.remove(db_path)
-
+    with tempfile.NamedTemporaryFile(suffix=".sqlite") as temp_db:
+        db_path = temp_db.name
+        connector = DBConnector(db_path)
+        yield connector
+        connector._disconnect()
 
 def test_create_users_table(db):
     db.create_users_table()
