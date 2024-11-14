@@ -88,7 +88,6 @@ class TestChessBoard(unittest.TestCase):
 
     def test_pawn_promotion(self):
         self.chess_board.board[6][0] = None
-        self.chess_board.board[7][0] = None
         self.chess_board.board[7][0] = Pawn("white")  # make white pawn
         self.chess_board.promote_pawn(7, 0, Queen)
         self.assertIsInstance(self.chess_board.board[7][0], Queen)
