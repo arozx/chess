@@ -1,13 +1,13 @@
 import chess
 import time
 import csv
-import logging  # Add logging import
+import logging
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 
 # Configure logging
 logging.basicConfig(
-    level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
@@ -319,7 +319,9 @@ class ChessBoard:
                     self.board[endx][endy - 1] = None
 
         # handle castling
-        if is_castling:
+        if is_castling and (
+            isinstance(self.board[x][y], Rook) or isinstance(self.board[x][y], King)
+        ):
             if endy == 2:  # queenside castling
                 self.board[endx][endy] = self.board[x][y]
                 self.board[x][y] = None
@@ -346,20 +348,29 @@ class ChessBoard:
         # increment the move count
         self.move_count += 1
 
+        # log the board state before the move
+        logging.debug(f"Board state before move: {self.board}")
+
         # move the actual piece
-        logging.info(f"Endx, Endy: {self.board[endx][endy]}")
-        self.board[endx][endy] = self.board[x][y]
-        logging.info(f"X, Y: {self.board[x][y]}")
+        piece = self.board[x][y]
+        logging.info(
+            f"Moving piece: {piece.__class__.__name__} from ({x}, {y}) to ({endx}, {endy})"
+        )
+        self.board[endx][endy] = piece
         self.board[x][y] = None
+
+        # log the board state after the move
+        logging.debug(f"Board state after move: {self.board}")
 
         # switch the turn
         self.player_turn = "black" if self.player_turn == "white" else "white"
         logging.info("Move successful")
 
         logging.debug(
-            f"{self.board[x][y].__class__.__name__} moved to ({endx}, {endy}) , {self.board[endx][endy].__class__.__name__} at ({x}, {y}) removed"
+            f"{piece.__class__.__name__} moved to ({endx}, {endy}) , {self.board[endx][endy].__class__.__name__} at ({x}, {y}) removed"
         )
 
+        logging.debug(f"Valid Moves: {valid_moves}")
         # Display the updated board
         self.display_board_as_text()
 
@@ -475,21 +486,16 @@ class ChessBoard:
             #! DEBUG TEMP REMOVE THIS
             # self.display_board_as_coordinates()
             self.display_board_as_text()
-            print(f"Move count: {self.move_count}")  # Display move count
             elapsed_time = time.time() - self.start_time  # Calculate elapsed time
-            print(f"Elapsed time: {elapsed_time:.2f} seconds")  # Display elapsed time
             logging.info(f"Move count: {self.move_count}")
             logging.info(f"Elapsed time: {elapsed_time:.2f} seconds")
-            print(f"{self.player_turn.capitalize()} to move")
             logging.info(f"{self.player_turn.capitalize()} to move")
             x, y, endx, endy = map(int, input("Enter move: ").split())
             if self.move_piece(x, y, endx, endy):
                 self.player_turn = "black" if self.player_turn == "white" else "white"
             else:
                 print("Invalid move")
-
         logging.info("Game over")
-        print("Game over")
 
 
 if __name__ == "__main__":
