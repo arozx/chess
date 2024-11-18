@@ -106,7 +106,7 @@ def add_game_to_db(game, file_id):
     return game_data
 
 
-def process_game(file, game_number):
+def process_game(file):
     file_id = os.path.basename(file)  # file_id is basename
     with open(file) as pgn:
         game = chess.pgn.read_game(pgn)
