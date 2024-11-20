@@ -48,6 +48,7 @@ A full stack chess app using PyQt5 for the front end and an engine using Monte-C
 
 - `chess_board_1.py`: Contains the `ChessBoard` class which initializes the chessboard and sets up the pieces.
 - `db_connector.py`: Handles database connections.
+- `postgresql_auth.py`: Handle user login connections.
 - `eval_board.py`: Evaluates the board state.
 - `gui.py`: Manages the graphical user interface.
 - `hsm.py`: Hierarchical state machine implementation.
@@ -91,6 +92,18 @@ To run the program use the following comand
 
 ```sh
 python chess_board_1.py
+```
+
+To run with a client and server run the following command on the server:
+
+```sh
+python3 -m online.network_server
+```
+
+And the following command on the client:
+
+```sh
+python3 -m online.network_client
 ```
 
 ### Testing
