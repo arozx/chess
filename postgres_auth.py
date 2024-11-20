@@ -1,12 +1,19 @@
 import psycopg2
-
-
 import hashlib
+import dotenv
 import os
 
 
 class DBConnector:
     def __init__(self):
+        dotenv.load_dotenv()
+        # load vars
+        self.DB_NAME = os.getenv("DB_NAME")
+        self.DB_USER = os.getenv("DB_USER")
+        self.DB_HOST = os.getenv("DB_HOST")
+        self.DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+        # connect to the database
         self._connect()
 
     """
@@ -16,7 +23,10 @@ class DBConnector:
 
     def _connect(self):
         self.conn = psycopg2.connect(
-            dbname="userauth", user="postgres", host="localhost"
+            dbname=self.DB_NAME,
+            user=self.DB_USER,
+            host=self.DB_HOST,
+            password=self.DB_PASSWORD,
         )
 
         self.cursor = self.conn.cursor()
@@ -134,7 +144,7 @@ if __name__ == "__main__":
     db.create_logins_table()
 
     # create a user
-    paswd = "jack"
-    user = "jack"
-    # db.insert_user(user, paswd)
+    paswd = "jack2"
+    user = "jack2"
+    db.insert_user(user, paswd)
     print(db.verify_user(user, paswd))
