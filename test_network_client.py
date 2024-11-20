@@ -6,9 +6,9 @@ from online.network_client import ChessClient
 class TestChessClient(unittest.TestCase):
     @patch("online.network_client.NetworkedChessBoard")
     @patch("online.network_client.NetworkedChessBoardUI")
-    def setUp(self, MockNetworkedChessBoardUI, MockNetworkedChessBoard):
-        self.mock_chess_board = MockNetworkedChessBoard.return_value
-        self.mock_chess_board_ui = MockNetworkedChessBoardUI.return_value
+    def setUp(self, mock_networked_chess_board_ui, mock_networked_chess_board):
+        self.mock_chess_board = mock_networked_chess_board.return_value
+        self.mock_chess_board_ui = mock_networked_chess_board_ui.return_value
         self.client = ChessClient()
 
     def test_initialization(self):

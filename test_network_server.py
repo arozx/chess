@@ -34,7 +34,7 @@ def test_chess_server_init(mock_executor, mock_socket, mock_chess_board):
 
     # Check if logging info is called
     with patch("online.network_server.logging.info") as mock_logging_info:
-        server = ChessServer(host="localhost", port=5556, max_workers=5)
+        ChessServer(host="localhost", port=5556, max_workers=5)
         mock_logging_info.assert_called_once_with(
             "Server started, waiting for connections..."
         )

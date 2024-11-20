@@ -23,7 +23,7 @@ def server():
 
 
 @pytest.fixture
-def chess_board(server):
+def chess_board():
     return NetworkedChessBoard(host="localhost", port=5555, is_server=False)
 
 

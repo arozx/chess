@@ -16,7 +16,7 @@ class NetworkedChessBoard(ChessBoard):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(5)  # Set a timeout for the socket
         if is_server:
-            for attempt in range(5):  # Retry up to 5 times
+            for _ in range(5):  # Retry up to 5 times
                 try:
                     self.socket.bind((host, port))
                     logging.info(f"Server bound to {host}:{port}")
