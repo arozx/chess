@@ -1,6 +1,4 @@
-import hashlib
 import sqlite3
-import os
 
 
 class DBConnector:
@@ -37,90 +35,6 @@ class DBConnector:
         cursor.execute(query)
         self.conn.commit()
         return cursor
-
-    """
-    Creates a users table if it doesn't exist
-    returns N/A
-    """
-
-    def create_users_table(self):
-        c = self.conn.cursor()
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            username TEXT,
-            password_hash TEXT,
-            salt TEXT
-        )""")
-        self.conn.commit()
-
-    """
-    Inserts a user
-    Doesn't do any validation
-    hashing is done inside the function
-    returns N/A
-    """
-
-    def insert_user(self, username, password):
-        salt = os.urandom(16).hex()
-        password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
-        query = f"INSERT INTO users (username, password_hash, salt) VALUES ('{username}', '{password_hash}', '{salt}')"
-        self.__execute_query(query)
-
-    """
-    Checks if a user is inside the database
-    return N/A
-    """
-
-    def verify_user(self, username, password):
-        query = f"SELECT password_hash, salt FROM users WHERE username = '{username}'"
-        cursor = self.__execute_query(query)
-        result = cursor.fetchone()
-        if result:
-            stored_hash, salt = result
-            password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
-            return stored_hash == password_hash
-        return False
-
-    """
-    Table for user login times
-    Stores ID and login times
-    returns N/A
-    """
-
-    def create_logins_table(self):
-        c = self.conn.cursor()
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS logins (
-            id INTEGER PRIMARY KEY,
-            username TEXT,
-            time REAL
-        )""")
-        self.conn.commit()
-
-    """
-    Inserts login times for a givern username
-    Time is rounded to 2 dp
-    returns N/A
-    """
-
-    def insert_login_attempt(self, username, time):
-        query = (
-            f"INSERT INTO logins (username, time) VALUES('{username}', '{time:.2f}')"
-        )
-        self.__execute_query(query)
-
-    """
-    Retrive login attemps
-    returns the attemps as an array if there are any
-    returns N/A
-    """
-
-    def get_login_attemps(self, username):
-        query = f"SELECT username, time FROM logins WHERE username = '{username}'"
-        cursor = self.__execute_query(query)
-        if cursor is not None:
-            return cursor.fetchall()
 
     """
     Creates a table to store games
