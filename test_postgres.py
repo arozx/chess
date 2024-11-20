@@ -1,5 +1,5 @@
 import pytest
-from postgres import DBConnector
+from postgres_auth import DBConnector
 
 
 @pytest.fixture(scope="module")

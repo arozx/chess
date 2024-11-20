@@ -126,3 +126,15 @@ class DBConnector:
         cursor = self.__execute_query(query)
         if cursor is not None:
             return cursor.fetchall()
+
+
+if __name__ == "__main__":
+    db = DBConnector()
+    db.create_users_table()
+    db.create_logins_table()
+
+    # create a user
+    paswd = "jack"
+    user = "jack"
+    # db.insert_user(user, paswd)
+    print(db.verify_user(user, paswd))
