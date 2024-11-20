@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
 from chess_board_1 import ChessBoard
 import time
-from db_connector import DBConnector
+from postgres_auth import DBConnector
 from mcts import MCTS, Node
 
 class ChessPiece(QLabel):
@@ -21,7 +21,7 @@ class ChessPiece(QLabel):
 class ChessBoardUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.db_connector = DBConnector('chess.db')
+        self.db_connector = DBConnector()
         self.db_connector.create_users_table()
         self.db_connector.create_logins_table()
         self.init_login_ui()
