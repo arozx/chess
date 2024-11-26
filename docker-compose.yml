@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: userauth
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  chess_app:
+    build: .
+    container_name: chess_app
+    depends_on:
+      - postgres
+    environment:
+      DB_NAME: userauth
+      DB_USER: postgres
+      DB_HOST: postgres
+      DB_PASSWORD: example
+    ports:
+      - "5556:5556"
+    command: ["python3", "-m", "online.network_server"]
+
+volumes:
+  postgres_data:
