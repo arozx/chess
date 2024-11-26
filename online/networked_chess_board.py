@@ -14,7 +14,7 @@ class NetworkedChessBoard(ChessBoard):
         self.host = host
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.settimeout(5)  # Set a timeout for the socket
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if is_server:
             for _ in range(5):  # Retry up to 5 times
                 try:
@@ -29,16 +29,21 @@ class NetworkedChessBoard(ChessBoard):
                         port += 1
                     else:
                         raise
-            self.socket.listen(1)
-            logging.info("Server listening for connections...")
-            self.client_socket, _ = self.socket.accept()
-            logging.info("Client connected")
-            self.client_socket.settimeout(5)  # Set a timeout for the client socket
-            self.receive_thread = threading.Thread(target=self.receive_data)
-            self.receive_thread.start()
+
+            # listening loop
+            while True:
+                try:
+                    self.socket.listen(1)
+                    logging.info("Server listening for connections...")
+                    self.client_socket, _ = self.socket.accept()
+                    self.receive_thread = threading.Thread(target=self.receive_data)
+                    self.receive_thread.start()
+                except Exception as e:
+                    print(e)
         else:
             self.socket.connect((host, port))
             logging.info(f"Client connected to {host}:{port}")
+            self.client_socket = self.socket
             self.receive_thread = threading.Thread(target=self.receive_data)
             self.receive_thread.start()
 
