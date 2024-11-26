@@ -38,11 +38,3 @@ class TestChessClient(unittest.TestCase):
         if hasattr(self.client.chess_board, "receive_thread"):
             self.client.chess_board.receive_thread.join.assert_called()
         self.client.chess_board_ui.close.assert_called()
-
-
-if __name__ == "__main__":
-    unittest.main()
-
-
-if __name__ == "__main__":
-    unittest.main()
