@@ -1,6 +1,10 @@
 # Use smaller python image
 FROM python:3.11-slim
 
+# Create a non-root
+RUN useradd -m chess
+USER chess
+
 # Set the working directory
 WORKDIR /app
 
