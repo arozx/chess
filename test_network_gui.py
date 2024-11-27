@@ -14,7 +14,7 @@ def app():
 
 @pytest.fixture(scope="module")
 def server():
-    server_board = NetworkedChessBoard(host="localhost", port=5555, is_server=True)
+    server_board = NetworkedChessBoard(host="localhost", port=5556, is_server=True)
     server_thread = threading.Thread(target=server_board.receive_data)
     server_thread.start()
     yield server_board
@@ -24,7 +24,7 @@ def server():
 
 @pytest.fixture
 def chess_board():
-    return NetworkedChessBoard(host="localhost", port=5555, is_server=False)
+    return NetworkedChessBoard(host="localhost", port=5556, is_server=False)
 
 
 @pytest.fixture

@@ -12,7 +12,6 @@ class ChessServer:
         self.chess_board = NetworkedChessBoard(host=host, port=port, is_server=True)
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server.settimeout(5)  # Set a timeout for the server socket
         self.server.bind((host, port))
         self.server.listen(5)
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -20,7 +19,6 @@ class ChessServer:
         logging.info("Server started, waiting for connections...")
 
     def handle_client(self, client_socket):
-        client_socket.settimeout(5)  # Set a timeout for the client socket
         while True:
             try:
                 data = client_socket.recv(4096)
@@ -29,8 +27,6 @@ class ChessServer:
                 move = pickle.loads(data)
                 if self.chess_board.move_piece(*move):
                     self.broadcast(pickle.dumps(move))
-            except socket.timeout:
-                continue
             except Exception as e:
                 logging.error(f"Error: {e}")
                 break
@@ -53,13 +49,18 @@ class ChessServer:
         self.executor.shutdown(wait=True)
 
     def start(self):
-        while True:
-            client_socket, addr = self.server.accept()
-            print(f"Connection from {addr}")
-            self.clients.append(client_socket)
-            self.executor.submit(self.handle_client, client_socket)
+        try:
+            while True:
+                client_socket, addr = self.server.accept()
+                logging.info(f"Connection from {addr}")
+                self.clients.append(client_socket)
+                self.executor.submit(self.handle_client, client_socket)
+        except KeyboardInterrupt:
+            logging.info("Server shutting down...")
+            self.shutdown()
 
 
 if __name__ == "__main__":
-    server = ChessServer()
+    logging.basicConfig(level=logging.INFO)
+    server = ChessServer(host="localhost", port=5556)
     server.start()
