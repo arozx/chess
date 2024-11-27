@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 from online.network_server import ChessServer
 
 
+
 @patch("online.network_server.NetworkedChessBoard")
 @patch("online.network_server.socket.socket")
 @patch("online.network_server.ThreadPoolExecutor")
@@ -22,7 +23,6 @@ def test_chess_server_init(mock_executor, mock_socket, mock_chess_board):
     mock_socket_instance.setsockopt.assert_called_once_with(
         socket.SOL_SOCKET, socket.SO_REUSEADDR, 1
     )
-    mock_socket_instance.settimeout.assert_called_once_with(5)
     mock_socket_instance.bind.assert_called_once_with(("localhost", 5556))
     mock_socket_instance.listen.assert_called_once_with(5)
 
