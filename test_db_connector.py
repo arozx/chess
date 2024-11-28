@@ -1,13 +1,13 @@
 import pytest
 import tempfile
 
-from db_connector import DBConnector
+from db_connector import SQLiteDBConnector
 
 @pytest.fixture
 def db():
     with tempfile.NamedTemporaryFile(suffix=".sqlite") as temp_db:
         db_path = temp_db.name
-        connector = DBConnector(db_path)
+        connector = SQLiteDBConnector(db_path)
         yield connector
         connector._disconnect()
 
