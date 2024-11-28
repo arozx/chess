@@ -1,7 +1,7 @@
 import sqlite3
 
 
-class DBConnector:
+class SQLiteDBConnector:
     def __init__(self, database):
         self.database = database
         self._connect()
