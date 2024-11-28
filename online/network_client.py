@@ -42,6 +42,9 @@ class ChessClient:
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    client = ChessClient()
+    if len(sys.argv) > 1:
+        client = ChessClient(host=sys.argv[1])
+    else:
+        client = ChessClient()
     client.chess_board_ui.show()
     sys.exit(app.exec_())
