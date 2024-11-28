@@ -18,6 +18,7 @@ from PyQt5.QtGui import QPixmap
 # From the application
 from chess_board_1 import ChessBoard
 from postgres_auth import DBConnector
+from db_connector import SQLiteDBConnector
 from mcts import MCTS, Node
 
 
@@ -53,6 +54,13 @@ class ChessBoardUI(QMainWindow):
         self.db_connector = DBConnector()
         self.db_connector.create_users_table()
         self.db_connector.create_logins_table()
+
+        # Open SQLite database
+        self.sqlite_connector = SQLiteDBConnector("chess_game.db")
+        self.sqlite_connector.create_games_table()
+        self.current_game_id = None
+        self.player1 = "White"
+        self.player2 = "Black"
 
         # Initialize variables
         self.chess_board = ChessBoard()
@@ -255,6 +263,16 @@ class ChessBoardUI(QMainWindow):
 
         # Add the new move at the top
         self.move_history_labels[0].setText(move)
+
+        self.save_move()
+
+    def save_move(self):
+        """
+        Save the move history
+        """
+        self.sqlite_connector.insert_game(
+            self.player1, self.player2, self.move_history_labels[0].text()
+        )
 
     def start_timer(self):
         """
