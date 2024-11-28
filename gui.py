@@ -245,8 +245,9 @@ class ChessBoardUI(QMainWindow):
         source_notation = to_chess_notation(source_row, source_col)
         target_notation = to_chess_notation(target_row, target_col)
 
-        move = f"{self.chess_board.player_turn.capitalize()}: {source_notation} → {target_notation}"
-        print(move)  # For debugging/logging purposes
+        current_player = "Black" if self.chess_board.player_turn == "white" else "White"
+
+        move = f"{current_player}: {source_notation} → {target_notation}"
 
         # Shift previous moves down the history
         for i in range(len(self.move_history_labels) - 1, 0, -1):
