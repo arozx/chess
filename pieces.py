@@ -25,53 +25,85 @@ class Rook(Piece):
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
-        valid_moves.append((x, y))
 
         # check if the square in front of the rook is empty
-        for i in range(1, 8):
-            if y + i <= 7:
-                if board[x][y + i] is None:
-                    valid_moves.append((x, y + i))
-                elif board[x][y + i].colour != board[x][y].colour:
-                    valid_moves.append((x, y + i))
-                    break
+        def front(x, y, valid_moves):
+            for i in range(1, 8):
+                if y + i <= 7:
+                    if board[x][y + i] is None:
+                        valid_moves.append((x, y + i))
+                    elif board[x][y + i].colour != board[x][y].colour:
+                        valid_moves.append((x, y + i))
+                        break
+                    else:
+                        break
                 else:
                     break
-            else:
-                break
+            return valid_moves
 
-            if board[x][y + i] is not None:
-                break
+        valid_moves = front(x, y, valid_moves)
+
         # check if the square behind the rook is empty
-        for i in range(1, 8):
-            if y - i >= 0:
-                if board[x][y - i] is None:
-                    valid_moves.append((x, y - i))
-                elif board[x][y - i].colour != board[x][y].colour:
-                    valid_moves.append((x, y - i))
-                    break
-                else:
-                    break
+        def back(x, y, valid_moves):
+            for i in range(1, 8):
+                if y - i >= 0:
+                    if board[x][y - i] is None:
+                        valid_moves.append((x, y - i))
+                    elif board[x][y - i].colour != board[x][y].colour:
+                        valid_moves.append((x, y - i))
+                        break
+                    else:
+                        break
+            return valid_moves
+
+        valid_moves = back(x, y, valid_moves)
+
         # check if the square to the left of the rook is empty
-        for i in range(1, 8):
-            if x + i <= 7:
-                if board[x + i][y] is None:
-                    valid_moves.append((x + i, y))
-                elif board[x + i][y].colour != board[x][y].colour:
-                    valid_moves.append((x + i, y))
-                    break
-                else:
-                    break
+        def left(x, y, valid_moves):
+            for i in range(1, 8):
+                if x + i <= 7:
+                    if board[x + i][y] is None:
+                        valid_moves.append((x + i, y))
+                    elif board[x + i][y].colour != board[x][y].colour:
+                        valid_moves.append((x + i, y))
+                        break
+                    else:
+                        break
+            return valid_moves
+
+        valid_moves = left(x, y, valid_moves)
+
         # check if the square to the right of the rook is empty
-        for i in range(1, 8):
-            if x - i >= 0:
-                if board[x - i][y] is None:
-                    valid_moves.append((x - i, y))
-                elif board[x - i][y].colour != board[x][y].colour:
-                    valid_moves.append((x - i, y))
-                    break
-                else:
-                    break
+        def right(x, y, valid_moves):
+            for i in range(1, 8):
+                if x - i >= 0:
+                    if board[x - i][y] is None:
+                        valid_moves.append((x - i, y))
+                    elif board[x - i][y].colour != board[x][y].colour:
+                        valid_moves.append((x - i, y))
+                        break
+                    else:
+                        break
+            return valid_moves
+
+        valid_moves = right(x, y, valid_moves)
+
+        """
+        def run_cpu_tasks_in_parallel(tasks, x, y, valid_moves):
+            with ProcessPoolExecutor() as executor:
+                futures = [executor.submit(task, x, y, valid_moves) for task in tasks]
+                for future in futures:
+                    valid_moves = future.result()
+            return valid_moves
+
+        valid_moves = right(x, y, valid_moves)
+
+        # Get all valid moves simultaneously and return the list
+
+        all_moves = [front, back, left, right]
+        valid_moves = run_cpu_tasks_in_parallel(all_moves, x, y, valid_moves)
+
+        """
         return valid_moves
 
 
@@ -107,50 +139,68 @@ class Bishop(Piece):
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
+        i = 1
+
         # Check diagonal up-right
-        i = 1
-        while x + i <= 7 and y + i <= 7:
-            if board[x + i][y + i] is None:
-                valid_moves.append((x + i, y + i))
-            elif board[x + i][y + i].colour != self.colour:
-                valid_moves.append((x + i, y + i))
-                break
-            else:
-                break
-            i += 1
+        def diagonal_up_right(self, i, valid_moves):
+            while x + i <= 7 and y + i <= 7:
+                if board[x + i][y + i] is None:
+                    valid_moves.append((x + i, y + i))
+                elif board[x + i][y + i].colour != self.colour:
+                    valid_moves.append((x + i, y + i))
+                    break
+                else:
+                    break
+                i += 1
+            return valid_moves
+
+        valid_moves = diagonal_up_right(self, i, valid_moves)
+
         # Check diagonal up-left
-        i = 1
-        while x + i <= 7 and y - i >= 0:
-            if board[x + i][y - i] is None:
-                valid_moves.append((x + i, y - i))
-            elif board[x + i][y - i].colour != self.colour:
-                valid_moves.append((x + i, y - i))
-                break
-            else:
-                break
-            i += 1
+        def diagonal_up_left(self, i, valid_moves):
+            while x + i <= 7 and y - i >= 0:
+                if board[x + i][y - i] is None:
+                    valid_moves.append((x + i, y - i))
+                elif board[x + i][y - i].colour != self.colour:
+                    valid_moves.append((x + i, y - i))
+                    break
+                else:
+                    break
+                i += 1
+            return valid_moves
+
+        valid_moves = diagonal_up_left(self, i, valid_moves)
+
         # Check diagonal down-right
-        i = 1
-        while x - i >= 0 and y + i <= 7:
-            if board[x - i][y + i] is None:
-                valid_moves.append((x - i, y + i))
-            elif board[x - i][y + i].colour != self.colour:
-                valid_moves.append((x - i, y + i))
-                break
-            else:
-                break
-            i += 1
+        def diagonal_down_left(self, i, valid_moves):
+            while x - i >= 0 and y + i <= 7:
+                if board[x - i][y + i] is None:
+                    valid_moves.append((x - i, y + i))
+                elif board[x - i][y + i].colour != self.colour:
+                    valid_moves.append((x - i, y + i))
+                    break
+                else:
+                    break
+                i += 1
+            return valid_moves
+
+        valid_moves = diagonal_down_left(self, i, valid_moves)
+
         # Check diagonal down-left
-        i = 1
-        while x - i >= 0 and y - i >= 0:
-            if board[x - i][y - i] is None:
-                valid_moves.append((x - i, y - i))
-            elif board[x - i][y - i].colour != self.colour:
-                valid_moves.append((x - i, y - i))
-                break
-            else:
-                break
-            i += 1
+        def diagonal_down_left(self, i, valid_moves):
+            while x - i >= 0 and y - i >= 0:
+                if board[x - i][y - i] is None:
+                    valid_moves.append((x - i, y - i))
+                elif board[x - i][y - i].colour != self.colour:
+                    valid_moves.append((x - i, y - i))
+                    break
+                else:
+                    break
+                i += 1
+            return valid_moves
+
+        valid_moves = diagonal_down_left(self, i, valid_moves)
+
         return valid_moves
 
 
