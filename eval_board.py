@@ -1,3 +1,60 @@
+def blocked_pawns(board, i, x, colour, blocked):
+    # check if there is a piece infrount of the pawn
+    if board[i][x].colour == "white":
+        if board[i + 1][x].__class__.__name__ != "":
+            match colour:
+                case "white":
+                    blocked -= 0.5
+                case "black":
+                    blocked += 0.5
+
+    elif board[i][x].colour == "black":
+        if board[i - 1][x].__class__.__name__ != "":
+            match colour:
+                case "white":
+                    blocked += 0.5
+                case "black":
+                    blocked -= 0.5
+    return blocked
+
+
+def isolated_pawns(board, i, x, colour, isolated):
+    # Check for white isolated pawns
+    if board[i][x].colour == "white":
+        if board[i + 1][x + 1].__class__.__name__ == "Pawn":
+            if board[i + 1][x + 1].colour == "white":
+                match colour:
+                    case "white":
+                        isolated -= 0.5
+                    case "black":
+                        isolated += 0.5
+        if board[i + 1][x - 1].__class__.__name__ == "Pawn":
+            if board[i + 1][x - 1].colour == "white":
+                match colour:
+                    case "white":
+                        isolated -= 0.5
+                    case "black":
+                        isolated += 0.5
+
+    # Check for black isolated pawns
+    if board[i][x].colour == "black":
+        if board[i - 1][x + 1].__class__.__name__ == "Pawn":
+            if board[i - 1][x + 1].colour == "black":
+                match colour:
+                    case "white":
+                        isolated -= 0.5
+                    case "black":
+                        isolated += 0.5
+        if board[i - 1][x - 1].__class__.__name__ == "Pawn":
+            if board[i - 1][x - 1].colour == "black":
+                match colour:
+                    case "white":
+                        isolated -= 0.5
+                    case "black":
+                        isolated += 0.5
+    return isolated
+
+
 def eval_board(board, colour, score_normalised):
     # Perform a static evaluation of the board
     # Uses the NEGA-MAX framework
@@ -74,60 +131,13 @@ def eval_board(board, colour, score_normalised):
                         else:
                             doubled += 0.5
 
-                    # Blocked pawns
-                    # check if ther is a piece infrount of the pawn
-                    if board[i][x].colour == "white":
-                        if board[i + 1][x].__class__.__name__ != "":
-                            match colour:
-                                case "white":
-                                    blocked -= 0.5
-                                case "black":
-                                    blocked += 0.5
+                # Check blocked Pawns
+                blocked = blocked_pawns(board, i, x, colour, blocked)
 
-                    elif board[i][x].colour == "black":
-                        if board[i - 1][x].__class__.__name__ != "":
-                            match colour:
-                                case "white":
-                                    blocked += 0.5
-                                case "black":
-                                    blocked -= 0.5
+                # Check isolated Pawns
+                isolated = isolated_pawns(board, i, x, colour, isolated)
 
-                    # Isolated pawns
-                    # Check for white isolated pawns
-                    if board[i][x].colour == "white":
-                        if board[i + 1][x + 1].__class__.__name__ == "Pawn":
-                            if board[i + 1][x + 1].colour == "white":
-                                match colour:
-                                    case "white":
-                                        isolated -= 0.5
-                                    case "black":
-                                        isolated += 0.5
-                        if board[i + 1][x - 1].__class__.__name__ == "Pawn":
-                            if board[i + 1][x - 1].colour == "white":
-                                match colour:
-                                    case "white":
-                                        isolated -= 0.5
-                                    case "black":
-                                        isolated += 0.5
-
-                    # Check for black isolated pawns
-                    if board[i][x].colour == "black":
-                        if board[i - 1][x + 1].__class__.__name__ == "Pawn":
-                            if board[i - 1][x + 1].colour == "black":
-                                match colour:
-                                    case "white":
-                                        isolated -= 0.5
-                                    case "black":
-                                        isolated += 0.5
-                        if board[i - 1][x - 1].__class__.__name__ == "Pawn":
-                            if board[i - 1][x - 1].colour == "black":
-                                match colour:
-                                    case "white":
-                                        isolated -= 0.5
-                                    case "black":
-                                        isolated += 0.5
             except TypeError:
-                # No piece at this position
                 pass
 
             # Calculate mobility
