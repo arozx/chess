@@ -104,15 +104,13 @@ class MCTS:
         valid_moves = []
         for x in range(8):
             for y in range(8):
-                if board_array[x][y] is not None:
-                    if self.is_white and board_array[x][y].colour == "white":
-                        valid_moves = self.get_multiple_moves(
-                            board_array, valid_moves, x, y
-                        )
-                    elif not self.is_white and board_array[x][y].colour == "black":
-                        valid_moves = self.get_multiple_moves(
-                            board_array, valid_moves, x, y
-                        )
+                if board_array[x][y] is not None and (
+                    (self.is_white and board_array[x][y].colour == "white")
+                    or (not self.is_white and board_array[x][y].colour == "black")
+                ):
+                    valid_moves = self.get_multiple_moves(
+                        board_array, valid_moves, x, y
+                    )
         return valid_moves
 
     def get_multiple_moves(self, board_array, valid_moves, x, y):
