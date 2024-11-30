@@ -76,6 +76,9 @@ class ChessBoardUI(QMainWindow):
         self.clock_label = QLabel("Elapsed time: 0.00 seconds")
         self.material_count_label = QLabel("Material count: 0")
         self.player_to_move_label = QLabel("White to move")
+        self.opening_label = QLabel("Opening: Queen's Gambit")
+
+        # Move history labels
         self.move_history_labels = [QLabel() for _ in range(10)]
 
         # Create login UI first
@@ -137,6 +140,7 @@ class ChessBoardUI(QMainWindow):
         left_panel.addWidget(self.clock_label)
         left_panel.addWidget(self.material_count_label)
         left_panel.addWidget(self.player_to_move_label)
+        left_panel.addWidget(self.opening_label)
 
         # Chessboard grid
         self.grid_layout = QGridLayout()
@@ -230,10 +234,13 @@ class ChessBoardUI(QMainWindow):
             )
             self.update_move_history(source_row, source_col, target_row, target_col)
 
+            # update opening
+            self.opening_label.setText(f"Opening: {self.chess_board.get_opening()}")
+
             # If it's AI's turn, let AI move
             if self.chess_board.player_turn != "white":  # Assuming AI is black
                 QTimer.singleShot(
-                    1000, self.ai_move
+                    10, self.ai_move
                 )  # Delay AI move for a smooth transition
 
         self.selected_piece = None
@@ -280,7 +287,7 @@ class ChessBoardUI(QMainWindow):
         """
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_clock)
-        self.timer.start(1000)
+        self.timer.start(10)
 
     def update_clock(self):
         """
