@@ -3,7 +3,10 @@ import time
 import csv
 import logging
 
+from chess import pgn
+
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
+import io
 
 # Configure logging
 logging.basicConfig(
@@ -115,6 +118,26 @@ class ChessBoard:
                         chess.Piece.from_symbol(piece.symbol),
                     )
         return board.fen()
+
+    """
+    Takes no arguments
+    Returns the name of a PGN file containing the current board
+    """
+
+    def board_array_to_pgn(self):
+        board = chess.Board(self.board_array_to_fen())
+        file_io = io.StringIO()
+        exporter = pgn.FileExporter(file_io)
+        game = pgn.Game.from_board(board)
+        game.accept(exporter)
+        pgn_string = pgn.getvalue(self.board_array_to_fen)
+
+        file_name = f"game_{int(time.time())}.pgn"
+        with open(file_name, "w") as pgn_file:
+            pgn_file.write(pgn_string)
+
+        logging.info(f"PGN file saved as {file_name}")
+        return file_name
 
     """
     Takes no arguments
