@@ -108,7 +108,7 @@ python3 -m online.network_client
 
 ### Testing
 
-To run the tests, first install pytest by running
+To run the tests, first install tox by running (PyTest is a dependancy and will be installed automatically with tox)
 
 ```sh
 pip install tox
