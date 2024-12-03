@@ -1,4 +1,6 @@
 import unittest
+import configparser
+
 from PyQt5.QtWidgets import QApplication
 from gui import ChessBoardUI
 from db_connector import DBConnector
@@ -46,6 +48,22 @@ class TestChessBoardUI(unittest.TestCase):
         self.assertEqual(self.ui.move_count_label.text(), "Move count: 0")
         self.assertEqual(self.ui.player_to_move_label.text(), "White to move")
 
+    def test_parse_ini(self):
+        # Create a sample ini file
+        with open("test_theme.ini", "w") as f:
+            f.write("[light_squares]\ncolour = #f0d9b5\n")
+            f.write("[dark_squares]\ncolour = #b58863\n")
+
+        expected_result = {
+            "light_squares": {"colour": "#f0d9b5"},
+            "dark_squares": {"colour": "#b58863"},
+        }
+
+        result = self.ui.parse_ini("test_theme.ini")
+        self.assertEqual(result, expected_result)
+
+        # Clean up
+        remove("test_theme.ini")
 
 if __name__ == "__main__":
     unittest.main()

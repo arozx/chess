@@ -1,3 +1,4 @@
+import configparser
 import time
 import sys
 
@@ -81,6 +82,10 @@ class ChessBoardUI(QMainWindow):
         # Move history labels
         self.move_history_labels = [QLabel() for _ in range(10)]
 
+        # Export button
+        self.export_button = QPushButton("Export")
+        self.export_button.clicked.connect(self.export)
+
         # Create login UI first
         self.init_login_ui()
 
@@ -112,6 +117,12 @@ class ChessBoardUI(QMainWindow):
         # Set the login widget as central
         self.setCentralWidget(self.login_widget)
 
+    def export(self):
+        """
+        Exports the users game
+        """
+        self.chess_board.board_array_to_pgn()
+
     def handle_login(self):
         """
         Handle user login
@@ -142,9 +153,19 @@ class ChessBoardUI(QMainWindow):
         left_panel.addWidget(self.player_to_move_label)
         left_panel.addWidget(self.opening_label)
 
+        # Buttons
+        left_panel.addWidget(self.export_button)
+
+        # Load theme config from file
+        self.theme = self.parse_ini("theme.ini")
+
+        # extract light and dark squares
+        light_squares = self.theme["light_squares"]["colour"]
+        dark_squares = self.theme["dark_squares"]["colour"]
+
         # Chessboard grid
         self.grid_layout = QGridLayout()
-        self.init_chessboard()
+        self.init_chessboard(light_squares, dark_squares)
         left_panel.addLayout(self.grid_layout)
 
         # Right panel (Move history)
@@ -153,13 +174,13 @@ class ChessBoardUI(QMainWindow):
             right_panel.addWidget(label)
 
         # Combine layouts
-        main_layout.addLayout(left_panel)
-        main_layout.addLayout(right_panel)
+            main_layout.addLayout(left_panel)
+            main_layout.addLayout(right_panel)
 
-        self.start_timer()
-        self.show()
+            self.start_timer()
+            self.show()
 
-    def init_chessboard(self):
+    def init_chessboard(self, light_squares="#f0d9b5", dark_squares="#b58863"):
         """
         Create the chessboard grid layout
         """
@@ -168,7 +189,7 @@ class ChessBoardUI(QMainWindow):
                 button = QPushButton()
                 button.setFixedSize(60, 60)
                 button.setStyleSheet(
-                    f"background-color: {'#f0d9b5' if (row + col) % 2 == 0 else '#b58863'}; border: none;"
+                    f"background-color: {light_squares if (row + col) % 2 == 0 else dark_squares}; border: none;"
                 )
                 button.clicked.connect(lambda _, r=row, c=col: self.handle_click(r, c))
                 button.setLayout(QVBoxLayout())
@@ -180,6 +201,19 @@ class ChessBoardUI(QMainWindow):
                 if piece:
                     piece_label = ChessPiece(piece=piece)
                     button.layout().addWidget(piece_label)
+
+    def parse_ini(self, file_path):
+        """
+        Use configParser to parse theme.ini
+        return the users theme configuration as a dict
+        """
+
+        config = configparser.ConfigParser()
+        config.read(file_path)
+
+        # Convert sections to a dictionary
+        parsed_data = {section: dict(config[section]) for section in config.sections()}
+        return parsed_data
 
     def handle_click(self, row, col):
         """
