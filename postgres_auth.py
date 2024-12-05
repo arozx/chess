@@ -5,13 +5,19 @@ import os
 
 
 class DBConnector:
-    def __init__(self):
-        dotenv.load_dotenv()
-        # load vars
-        self.DB_NAME = os.getenv("DB_NAME")
-        self.DB_USER = os.getenv("DB_USER")
-        self.DB_HOST = os.getenv("DB_HOST")
-        self.DB_PASSWORD = os.getenv("DB_PASSWORD")
+    def __init__(self, env=True):
+        if env:
+            dotenv.load_dotenv()
+            # load vars
+            self.DB_NAME = os.getenv("DB_NAME")
+            self.DB_USER = os.getenv("DB_USER")
+            self.DB_HOST = os.getenv("DB_HOST")
+            self.DB_PASSWORD = os.getenv("DB_PASSWORD")
+        else:
+            self.DB_NAME = "userauth"
+            self.DB_USER = "postgres"
+            self.DB_HOST = "localhost"
+            self.DB_PASSWORD = ""
 
         # connect to the database
         self._connect()

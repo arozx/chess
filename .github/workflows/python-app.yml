@@ -103,6 +103,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
+          sudo apt-get install -y xvfb
           pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess psycopg2
 
       # Run tests with coverage

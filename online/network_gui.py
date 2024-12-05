@@ -29,7 +29,7 @@ class ChessPiece(QLabel):
 
 
 class NetworkedChessBoardUI(ChessBoardUI):
-    def __init__(self, chess_board, host="localhost", port=5556, is_server=False):
+    def __init__(self):
         super().__init__()
 
     def receive_data(self):

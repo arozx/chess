@@ -3,7 +3,6 @@ from unittest.mock import patch, MagicMock
 from online.network_server import ChessServer
 
 
-
 @patch("online.network_server.NetworkedChessBoard")
 @patch("online.network_server.socket.socket")
 @patch("online.network_server.ThreadPoolExecutor")

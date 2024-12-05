@@ -13,7 +13,7 @@ class ChessClient:
     def __init__(self, host="localhost", port=5556):
         self.chess_board = NetworkedChessBoard(host=host, port=port, is_server=False)
         self.chess_board.socket.settimeout(5)  # Set a timeout for the client socket
-        self.chess_board_ui = NetworkedChessBoardUI(self.chess_board)
+        self.chess_board_ui = NetworkedChessBoardUI()
         threading.Thread(target=self.receive_data).start()
 
     def receive_data(self):

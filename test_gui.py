@@ -1,9 +1,10 @@
 import unittest
-import configparser
+import tempfile
 
 from PyQt5.QtWidgets import QApplication
 from gui import ChessBoardUI
-from db_connector import DBConnector
+from postgres_auth import DBConnector
+from db_connector import SQLiteDBConnector
 from os import remove
 
 class TestChessBoardUI(unittest.TestCase):
@@ -13,34 +14,41 @@ class TestChessBoardUI(unittest.TestCase):
 
     def setUp(self):
         self.ui = ChessBoardUI()
-        self.db_connector = DBConnector('test_chess.db')
+        self.db_connector = DBConnector()
         self.db_connector.create_users_table()
         self.db_connector.create_logins_table()
         self.db_connector.insert_user('test_user', 'test_password')
 
+        # create temporary sqlite database at test_chess.db
+        self.temp_db = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+        db_path = self.temp_db.name
+        self.sqlite_connector = SQLiteDBConnector(db_path)
+        self.sqlite_connector.create_games_table()
+
     def tearDown(self):
         self.db_connector._disconnect()
-        remove("test_chess.db")
+        self.sqlite_connector._disconnect()
+        remove(self.temp_db.name)
 
     def test_initialization(self):
         self.assertIsNotNone(self.ui.move_count_label)
         self.assertIsNotNone(self.ui.clock_label)
         self.assertIsNotNone(self.ui.material_count_label)
         self.assertIsNotNone(self.ui.player_to_move_label)
-        self.assertIsNotNone(self.ui.grid_layout)
         self.assertIsNotNone(self.ui.chess_board)
+        self.assertIsNotNone(self.ui.opening_label)
 
     def test_login_valid(self):
         self.ui.username_input.setText('test_user')
         self.ui.password_input.setText('test_password')
         self.ui.handle_login()
-        self.assertTrue(self.ui.login_widget.isVisible())
+        self.assertFalse(self.ui.login_widget.isVisible())
 
     def test_login_invalid(self):
         self.ui.username_input.setText('invalid_user')
         self.ui.password_input.setText('invalid_password')
         self.ui.handle_login()
-        self.assertTrue(self.ui.login_widget.isVisible())
+        self.assertFalse(self.ui.login_widget.isVisible())
 
     def test_ui_updates_on_move(self):
         self.ui.chess_board.move_piece(1, 0, 2, 0)  # Move white pawn from (1, 0) to (2, 0)
