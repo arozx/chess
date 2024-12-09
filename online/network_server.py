@@ -1,6 +1,7 @@
 import asyncio
 import pickle
 import logging
+import os
 
 import websockets
 
@@ -8,8 +9,10 @@ from online.networked_chess_board import NetworkedChessBoard
 
 
 class ChessServer:
-    def __init__(self, host="localhost", port=5556):
-        self.uri = f"ws://{host}:{port}"
+    def __init__(self, host="localhost", port=None):
+        self.uri = (
+            f"ws://{host}:{port if port is not None else int(os.getenv('PORT', 5556))}"
+        )
         self.chess_board = NetworkedChessBoard(is_server=True)
         self.clients = set()
 

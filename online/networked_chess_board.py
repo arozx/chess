@@ -2,16 +2,17 @@ import asyncio
 import websockets
 import pickle
 import logging
+import os
 
 from chess_board_1 import ChessBoard
 
 
 class NetworkedChessBoard(ChessBoard):
-    def __init__(self, host="localhost", port=5556, is_server=False):
+    def __init__(self, host="localhost", port=None, is_server=False):
         super().__init__()
         self.is_server = is_server
         self.host = host
-        self.port = port
+        self.port = port if port is not None else int(os.getenv("PORT", 5556))
         self.websocket = None
         self.loop = asyncio.get_event_loop()
         self.recv_lock = asyncio.Lock()
