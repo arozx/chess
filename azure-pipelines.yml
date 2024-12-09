@@ -84,3 +84,7 @@ stages:
               azureSubscription: $(azureServiceConnectionId)
               appName: $(webAppName)
               package: $(Pipeline.Workspace)/drop/$(Build.BuildId).zip
+
+          - script: |
+              python3 -m online.network_server
+            displayName: 'Run network server'
