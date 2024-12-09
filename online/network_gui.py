@@ -1,14 +1,11 @@
 import pickle
-import sys
 
 from PyQt5.QtWidgets import (
-    QApplication,
     QLabel,
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 
-from online.networked_chess_board import NetworkedChessBoard
 from gui import ChessBoardUI
 
 
@@ -59,11 +56,3 @@ class NetworkedChessBoardUI(ChessBoardUI):
                 if piece:
                     piece_label = ChessPiece(piece=piece)
                     button.layout().addWidget(piece_label)
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    chess_board = NetworkedChessBoard(host="localhost", port=5555, is_server=False)
-    window = NetworkedChessBoardUI()
-    window.show()
-    sys.exit(app.exec_())

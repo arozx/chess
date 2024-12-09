@@ -1,50 +1,61 @@
-import threading
+import asyncio
 import pickle
-import socket
 import sys
+import threading
+import websockets
+
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from online.networked_chess_board import NetworkedChessBoard
 from online.network_gui import NetworkedChessBoardUI
 
-from PyQt5.QtWidgets import QApplication
 
+class ChessClient(QObject):
+    data_received = pyqtSignal(object)
 
-class ChessClient:
     def __init__(self, host="localhost", port=5556):
-        self.chess_board = NetworkedChessBoard(host=host, port=port, is_server=False)
-        self.chess_board.socket.settimeout(5)  # Set a timeout for the client socket
+        super().__init__()
+        self.uri = f"ws://{host}:{port}"
+        self.chess_board = NetworkedChessBoard(is_server=False)
         self.chess_board_ui = NetworkedChessBoardUI()
-        threading.Thread(target=self.receive_data).start()
+        self.websocket = None
 
-    def receive_data(self):
+        self.data_received.connect(self.handle_data)
+        threading.Thread(target=self.start_client()).start()
+
+    def start_client(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.connect_to_server())
+
+    async def connect_to_server(self):
+        async with websockets.connect(self.uri) as websocket:
+            self.websocket = websocket
+            self.chess_board_ui.show()
+            await self.receive_data()
+
+    async def receive_data(self):
         while True:
             try:
-                data = self.chess_board.socket.recv(4096)
-                if not data:
-                    break
+                data = await self.websocket.recv()
                 move = pickle.loads(data)
-                self.chess_board.move_piece(*move)
-                self.chess_board_ui.update_ui()
-            except socket.timeout:
-                continue
+                self.data_received.emit(move)
             except Exception as e:
                 print(f"Error: {e}")
                 break
 
-    def teardown(self):
-        # delete connection and cleanup
-        self.chess_board.socket.close()
-        if hasattr(self.chess_board, "receive_thread"):
-            self.chess_board.receive_thread.join()
+    def handle_data(self, move):
+        self.chess_board.move_piece(*move)
+        self.chess_board_ui.update_ui()
 
+    def teardown(self):
+        if self.websocket:
+            asyncio.run(self.websocket.close())
         self.chess_board_ui.close()
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    if len(sys.argv) > 1:
-        client = ChessClient(host=sys.argv[1])
-    else:
-        client = ChessClient()
-    client.chess_board_ui.show()
+    client = ChessClient()
     sys.exit(app.exec_())
