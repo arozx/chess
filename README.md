@@ -69,7 +69,7 @@ A full stack chess app using PyQt5 for the front end and an engine using Monte-C
 Python versions 3.9 - 3.12 are supported. You can download the latest version of python from [here](https://www.python.org/downloads/)
 
 
-### Installation
+# Installation
 
 Clone the github repo by running
 
@@ -86,7 +86,7 @@ pip install -r requirements.txt
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE -->
-## Usage
+# Usage
 
 To run the program use the following comand
 
@@ -96,17 +96,25 @@ python chess_board_1.py
 
 To run with a client and server run the following command on the server:
 
+## Dev:
 ```sh
-python3 -m online.network_server
+uvicorn main:app --reload --port 8000
 ```
 
-And the following command on the client:
-
+## Production:
 ```sh
-python3 -m online.network_client
+gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 main:app
 ```
 
-### Testing
+## Client:
+
+And the following command on the client (You may need to pass a URI as an argument if you are using your own server):
+
+```sh
+python3 -m client.py
+```
+
+# Testing
 
 To run the tests, first install tox by running (PyTest is a dependancy and will be installed automatically with tox)
 
@@ -121,14 +129,14 @@ tox
 ```
 
 <!-- LICENSE -->
-## License
+# License
 
-### Images
+## Images
 
 Images used in this project are from [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces). The images are under the Creative Commons license. Please see the individual image pages for more information on the copyright holder and the specific license conditions.
 
 <!-- CONTACT -->
-## Contact
+# Contact
 
 Project Link: [https://github.com/arozx/a-level_project](https://github.com/arozx/a-level_project)
 
