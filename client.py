@@ -5,6 +5,17 @@ from PyQt5.QtWidgets import QApplication
 from online.networked_chess_board import NetworkedChessBoard
 from online.network_gui import NetworkedChessBoardUI
 import websockets
+import sys
+import json
+import requests
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
+logger = logging.getLogger(__name__)
 
 
 class WebSocketThread(QThread):
@@ -24,9 +35,9 @@ class WebSocketThread(QThread):
                     data = await websocket.recv()
                     self.data_received.emit(data)
         except websockets.exceptions.ConnectionClosed as e:
-            print(f"WebSocket connection closed: {e}")
+            logging.error(f"WebSocket connection closed: {e}")
         except Exception as e:
-            print(f"WebSocket error: {e}")
+            logging.error(f"WebSocket error: {e}")
 
     def run(self):
         loop = asyncio.new_event_loop()
@@ -64,11 +75,60 @@ class ChessClient(QObject):
             self.chess_board.move_piece(*move)
             self.chess_board_ui.update_ui()
         except Exception as e:
-            print(f"Error handling data: {e}")
+            logging.error(f"Error handling data: {e}")
 
     def teardown(self):
         self.websocket_thread.stop()
         self.chess_board_ui.close()
+
+    async def send_message(self, message_type, **kwargs):
+        """Send a message to the server"""
+        if not self.websocket_thread.websocket:
+            logger.error("Not connected to server")
+            return False
+
+        message = {"type": message_type, **kwargs}
+
+        try:
+            await self.websocket_thread.websocket.send(json.dumps(message))
+            logger.debug(f"Sent message: {message}")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending message: {e}")
+            return False
+
+    async def receive_message(self):
+        """Receive a message from the server"""
+        if not self.websocket_thread.websocket:
+            logger.error("Not connected to server")
+            return None
+
+        try:
+            message = await self.websocket_thread.websocket.recv()
+            return json.loads(message)
+        except Exception as e:
+            logger.error(f"Error receiving message: {e}")
+            return None
+
+    async def send_move(self, from_pos, to_pos):
+        """Send a move to the server"""
+        return await self.send_message("move", move={"from": from_pos, "to": to_pos})
+
+    def check_server_health(self):
+        """Check if the server is healthy"""
+        try:
+            response = requests.get(f"{self.websocket_thread.websocket_url}/health")
+            if response.status_code == 200:
+                logger.info(f"Server is healthy: {response.json()}")
+                return True
+            else:
+                logger.error(f"Server returned status code {response.status_code}")
+                return False
+        except requests.exceptions.ConnectionError:
+            logger.error(
+                f"Could not connect to server at {self.websocket_thread.websocket_url}"
+            )
+            return False
 
 
 if __name__ == "__main__":
@@ -84,6 +144,8 @@ if __name__ == "__main__":
 
     else:
         websocket_url = sys.argv[1]
+
+    websocket_url = "ws://localhost:8000/ws"
 
     client = ChessClient(websocket_url)
     sys.exit(app.exec_())

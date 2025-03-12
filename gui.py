@@ -1,6 +1,8 @@
 import configparser
 import time
 import sys
+import traceback
+from logging_config import configure_logging, get_logger
 
 from PyQt5.QtWidgets import (
     QApplication,
@@ -12,6 +14,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLineEdit,
+    QMessageBox,
 )
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
@@ -20,8 +23,10 @@ from PyQt5.QtGui import QPixmap
 from chess_board_1 import ChessBoard
 from postgres_auth import DBConnector
 from db_connector import SQLiteDBConnector
-from mcts import MCTS, Node
+from mcts import MCTS
 
+# Configure logging
+logger = get_logger(__name__)
 
 class ChessPiece(QLabel):
     """
@@ -48,6 +53,7 @@ class ChessBoardUI(QMainWindow):
     """
     def __init__(self):
         super().__init__()
+        logger.info("Initializing Chess Game UI")
         self.setWindowTitle("Chess Game")
         self.setGeometry(100, 100, 900, 600)
 
@@ -88,6 +94,7 @@ class ChessBoardUI(QMainWindow):
 
         # Create login UI first
         self.init_login_ui()
+        logger.info("Chess Game UI initialized")
 
     def init_login_ui(self):
         """
@@ -129,11 +136,15 @@ class ChessBoardUI(QMainWindow):
         """
         username = self.username_input.text()
         password = self.password_input.text()
+        logger.info(f"Login attempt: {username}")
+
         if self.db_connector.verify_user(username, password):
+            logger.info(f"User {username} logged in successfully")
             self.db_connector.insert_login_attempt(username, time.time())
             self.init_main_ui()  # Switch to the main UI
         else:
-            print("Invalid username or password")
+            logger.warning(f"Invalid login attempt for user {username}")
+            QMessageBox.warning(self, "Login Failed", "Invalid username or password")
 
     def init_main_ui(self):
         """
@@ -226,14 +237,14 @@ class ChessBoardUI(QMainWindow):
             piece = widget.layout().itemAt(0).widget()
             piece_obj = self.chess_board.board[row][col]
             if piece_obj and piece_obj.colour != self.chess_board.player_turn:
-                print(f"It's {self.chess_board.player_turn}'s turn")
+                logger.warning(f"It's {self.chess_board.player_turn}'s turn")
                 return
             if self.selected_piece:
                 self.move_piece(target_row=row, target_col=col)
             else:
                 self.selected_piece = piece
                 self.selected_pos = (row, col)
-                print(f"Selected piece at ({row}, {col})")
+                logger.warning(f"Selected piece at ({row}, {col})")
         elif self.selected_piece:
             self.move_piece(target_row=row, target_col=col)
 
@@ -332,28 +343,145 @@ class ChessBoardUI(QMainWindow):
 
     def ai_move(self):
         """
-        Get best move using MCTS
+        Get best move using MCTS for the AI (black player)
         """
-        root_node = Node(self.chess_board.board)
-        mcts = MCTS(
-            root_node,
-            iterations=1000,
-            is_white=(self.chess_board.player_turn == "white"),
-        )
-        mcts.run()
-        best_move = mcts.best_move()
-        source_pos, dest_pos = best_move
-        source_row, source_col = source_pos
-        target_row, target_col = dest_pos
-        self.move_piece(
-            source_row=source_row,
-            source_col=source_col,
-            target_row=target_row,
-            target_col=target_col,
+        from chess_game_adapter import ChessGameAdapter
+
+        # Make sure we're handling black's turn
+        if self.chess_board.player_turn != "black":
+            logger.debug("Not AI's turn yet (AI plays as black)")
+            return
+
+        # Create a game adapter for MCTS
+        game_adapter = ChessGameAdapter(self.chess_board)
+
+        # Print info about the current board state
+        logger.info(
+            f"AI (black) is thinking... Current player turn: {self.chess_board.player_turn}"
         )
 
+        # Debug the board layout
+        board_representation = []
+        for row_idx, row in enumerate(self.chess_board.board):
+            row_str = ""
+            for col_idx, piece in enumerate(row):
+                if piece is None:
+                    row_str += ". "
+                else:
+                    symbol = (
+                        piece.__class__.__name__[0].lower()
+                        if piece.colour == "black"
+                        else piece.__class__.__name__[0].upper()
+                    )
+                    row_str += symbol + " "
+            board_representation.append(f"{7 - row_idx} {row_str}")
+
+        logger.debug("Current board state:\n" + "\n".join(board_representation))
+        logger.debug("  a b c d e f g h")
+
+        # Make sure player turn is black for AI
+        self.chess_board.player_turn = "black"
+
+        # Run MCTS with debug output
+        mcts = MCTS(
+            game_adapter,
+            iterations=1000,
+            is_white=False,  # AI is always black
+            time_limit=5,  # 5 seconds
+        )
+
+        try:
+            # Run MCTS to get the best move
+            best_move = mcts.run()
+            if best_move:
+                source_pos, dest_pos = best_move
+                source_row, source_col = source_pos
+                target_row, target_col = dest_pos
+
+                logger.info(
+                    f"AI found move: ({source_row}, {source_col}) -> ({target_row}, {target_col})"
+                )
+
+                # Validate the move before applying it
+                if (
+                    0 <= source_row < 8
+                    and 0 <= source_col < 8
+                    and 0 <= target_row < 8
+                    and 0 <= target_col < 8
+                ):
+                    # Check if there's a piece at the source position
+                    piece = self.chess_board.board[source_row][source_col]
+                    if piece is None:
+                        logger.warning(
+                            f"No piece found at ({source_row}, {source_col})"
+                        )
+                    elif piece.colour != "black":
+                        logger.warning(
+                            f"Piece at ({source_row}, {source_col}) is not black: {piece.colour}"
+                        )
+                    else:
+                        # Check if the move is in the list of valid moves for this piece
+                        valid_moves = piece.get_valid_moves(
+                            self.chess_board.board, source_row, source_col
+                        )
+                        if (target_row, target_col) in valid_moves:
+                            logger.info("Move is valid! Applying...")
+                            # Apply the move directly using the chess_board's move_piece method
+                            result = self.chess_board.move_piece(
+                                source_row, source_col, target_row, target_col
+                            )
+
+                            if result:
+                                logger.info("Move applied successfully")
+                                # Update GUI to reflect the move
+                                self.update_gui_after_move(
+                                    source_row, source_col, target_row, target_col
+                                )
+                            else:
+                                logger.warning("Chess board rejected the move")
+                        else:
+                            logger.warning(f"Move is not in valid moves: {valid_moves}")
+                else:
+                    logger.warning("Move coordinates are out of bounds")
+            else:
+                logger.warning("No valid moves found for AI (black)")
+        except Exception as e:
+            logger.error(f"Error during AI move: {e}")
+            logger.debug(traceback.format_exc())
+
+    def update_gui_after_move(self, source_row, source_col, target_row, target_col):
+        """Update GUI after an AI move"""
+        # Update GUI
+        source_button = self.grid_layout.itemAtPosition(source_row, source_col).widget()
+        if source_button.layout().count() > 0:
+            source_button.layout().itemAt(0).widget().deleteLater()
+
+        target_button = self.grid_layout.itemAtPosition(target_row, target_col).widget()
+        piece = self.chess_board.board[target_row][target_col]
+        if piece:
+            piece_label = ChessPiece(piece=piece)
+            # Clear any existing widgets in the target button
+            while target_button.layout().count():
+                item = target_button.layout().takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            target_button.layout().addWidget(piece_label)
+
+        # Update labels
+        self.move_count_label.setText(f"Move count: {self.chess_board.move_count}")
+        self.player_to_move_label.setText(
+            f"{self.chess_board.player_turn.capitalize()} to move"
+        )
+        self.update_move_history(source_row, source_col, target_row, target_col)
+
+        # Update opening
+        self.opening_label.setText(f"Opening: {self.chess_board.get_opening()}")
+
+# Initialize logging when the module is imported
+configure_logging()
 
 if __name__ == "__main__":
+    logger.info("Starting Chess Game Application")
     app = QApplication(sys.argv)
     window = ChessBoardUI()
     window.show()

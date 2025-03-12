@@ -1,11 +1,11 @@
-chess==1.10.0
-mysql-connector-python==9.1.0
-numpy==1.26.4
-pandas==2.2.2
-passlib==1.7.4
-PyQt5==5.15.10
-PyQt5-Qt5==5.15.2
-PyQt5-sip==12.13.0
+chess>=1.10.0
+mysql-connector-python>=9.1.0
+numpy>=1.26.4
+pandas>=2.2.2
+passlib>=1.7.4
+PyQt5>=5.15.10
+PyQt5-Qt5>=5.15.2
+PyQt5-sip>=12.13.0
 pytest>=8.2.1
 tornado>=6.4.1
 pycryptodome>=3.21.0
@@ -14,3 +14,5 @@ python-dotenv>=1.0.1
 fastapi
 uvicorn
 gunicorn
+websockets
+requests

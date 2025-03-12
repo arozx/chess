@@ -13,6 +13,11 @@ from alive_progress import alive_bar
 from db_connector import DBConnector
 from split_file import split_file
 
+from logging import getLogger
+
+logger = getLogger(__name__)
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "-d",
@@ -31,7 +36,7 @@ else:  # UNIX style path (osx, linux, etc)
 
 # connect to the SQLite database (or create it if it doesn't exist)
 conn = sqlite3.connect(database)
-print("opening database at:", database)
+logger.info(f"opening database at: {database}")
 
 
 # create a new DBConnector instance
@@ -76,7 +81,7 @@ def add_game_to_db(game, file_id):
     try:
         moves = " ".join(str(move) for move in game.mainline_moves())
     except ValueError:
-        print("Illegal move encountered. Skipping game...")
+        logger.warning("Illegal move encountered. Skipping game...")
         return None
 
     # format data as a dictionary
@@ -139,7 +144,7 @@ def process_file(file):
                     df.to_sql("games", conn, if_exists="append", index=False)
                     games_list = []  # clear the list
                 bar()  # update bar status
-    print("finished processing file:", file)
+    logger.info(f"finished processing file: {file}")
     conn.commit()
 
 
@@ -152,15 +157,15 @@ if __name__ == "__main__":
     files = []
     # returns the number of lines in the file
     file = "./lichess/lichess_db_standard_rated_2014-09.pgn"
-    print("Counting games in the file...")
+    logger.info("Counting games in the file...")
     games = count_games_in_pgn(file)
-    print(f"number of games, {games:,}")
+    logger.info(f"number of games, {games:,}")
     num_games = games
 
     # split the file into parts if it contains more than 100,000 games
     if games > 100_000:
         games = games // 100_000
-        print("The file is too large to be processed splitting it into parts.")
+        logger.info("The file is too large to be processed splitting it into parts.")
         split_file(file, games)
         for i in range(games):
             try:
@@ -172,7 +177,7 @@ if __name__ == "__main__":
             files.append(f"{file}_part{i+1}")
 
     # run the process_files function with profiling
-    print("Processing files...")
+    logger.info("Processing files...")
     profiler = cProfile.Profile()
     profiler.enable()
     process_files()

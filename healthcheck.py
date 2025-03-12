@@ -6,8 +6,7 @@ def check_health(host, port):
     try:
         with socket.create_connection((host, port), timeout=10):
             return True
-    except Exception as e:
-        print(f"Health check failed: {e}")
+    except Exception:
         return False
 
 

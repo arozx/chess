@@ -8,6 +8,10 @@ from PyQt5.QtGui import QPixmap
 
 from gui import ChessBoardUI
 
+from logging import getLogger
+
+logger = getLogger(__name__)
+
 
 class ChessPiece(QLabel):
     def __init__(self, parent=None, piece=None):
@@ -39,7 +43,7 @@ class NetworkedChessBoardUI(ChessBoardUI):
                 self.chess_board.move_piece(*move)
                 self.update_ui()
             except Exception as e:
-                print(f"Error: {e}")
+                logger.error(f"Error: {e}")
                 break
 
     def update_ui(self):

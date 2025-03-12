@@ -26,6 +26,10 @@ class Rook(Piece):
     def get_valid_moves(self, board, x, y):
         valid_moves = []
 
+        # Check boundaries first
+        if not (0 <= x < 8 and 0 <= y < 8):
+            return valid_moves
+
         # check if the square in front of the rook is empty
         def front(x, y, valid_moves):
             for i in range(1, 8):
@@ -139,6 +143,11 @@ class Bishop(Piece):
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
+
+        # Check boundaries first
+        if not (0 <= x < 8 and 0 <= y < 8):
+            return valid_moves
+
         i = 1
 
         # Check diagonal up-right
@@ -215,21 +224,26 @@ class Queen(Piece):
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
-        # define movement directions
+
+        # Check boundaries first
+        if not (0 <= x < 8 and 0 <= y < 8):
+            return valid_moves
+
+        # Get all valid diagonal and straight moves
         directions = [
             (0, 1),
             (0, -1),
             (1, 0),
-            (-1, 0),
+            (-1, 0),  # Rook moves
             (1, 1),
             (1, -1),
             (-1, 1),
-            (-1, -1),
+            (-1, -1),  # Bishop moves
         ]
-        # itterate thorugh all directions
+
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
-            while 0 <= nx < 8 and 0 <= ny < 8:
+            while 0 <= nx < 8 and 0 <= ny < 8:  # Stay within board boundaries
                 if board[nx][ny] is None:
                     valid_moves.append((nx, ny))
                 elif board[nx][ny].colour != self.colour:
@@ -238,6 +252,7 @@ class Queen(Piece):
                 else:
                     break
                 nx, ny = nx + dx, ny + dy
+
         return valid_moves
 
 
@@ -253,7 +268,11 @@ class King(Piece):
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
-        # define movement directions
+
+        # Check boundaries first
+        if not (0 <= x < 8 and 0 <= y < 8):
+            return valid_moves
+
         directions = [
             (0, 1),
             (0, -1),
@@ -264,12 +283,13 @@ class King(Piece):
             (-1, 1),
             (-1, -1),
         ]
-        # itterate thorugh all directions
+
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
-            if 0 <= nx < 8 and 0 <= ny < 8:
+            if 0 <= nx < 8 and 0 <= ny < 8:  # Stay within board boundaries
                 if board[nx][ny] is None or board[nx][ny].colour != self.colour:
                     valid_moves.append((nx, ny))
+
         return valid_moves
 
 
@@ -289,25 +309,29 @@ class Pawn(Piece):
         # Determine the direction of movement based on the color of the pawn
         direction = 1 if self.colour == "white" else -1
 
-        # Check if the square directly in front of the pawn is empty
-        if board[x + direction][y] is None:
-            valid_moves.append((x + direction, y))
+        # Check board boundaries before accessing cells
+        # Check forward move - one square
+        if 0 <= x + direction < 8:  # Check if next position is within board
+            if board[x + direction][y] is None:
+                valid_moves.append((x + direction, y))
 
-            # If it's the pawn's first move, check if the square two steps ahead is also empty
-            if self.first_move and board[x + 2 * direction][y] is None:
-                valid_moves.append((x + 2 * direction, y))
+                # If it's the pawn's first move, check if it can move two squares
+                if self.first_move and 0 <= x + 2 * direction < 8:
+                    if board[x + 2 * direction][y] is None:
+                        valid_moves.append((x + 2 * direction, y))
 
-        # Check for capturing moves diagonally
-        if 0 <= x + direction < 8:
+        # Check diagonal captures - left side
+        if 0 <= x + direction < 8 and 0 <= y - 1 < 8:
             if (
-                0 <= y - 1 < 8
-                and board[x + direction][y - 1] is not None
+                board[x + direction][y - 1] is not None
                 and board[x + direction][y - 1].colour != self.colour
             ):
                 valid_moves.append((x + direction, y - 1))
+
+        # Check diagonal captures - right side
+        if 0 <= x + direction < 8 and 0 <= y + 1 < 8:
             if (
-                0 <= y + 1 < 8
-                and board[x + direction][y + 1] is not None
+                board[x + direction][y + 1] is not None
                 and board[x + direction][y + 1].colour != self.colour
             ):
                 valid_moves.append((x + direction, y + 1))

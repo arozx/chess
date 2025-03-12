@@ -1,7 +1,8 @@
 import chess
 import time
 import csv
-import logging
+import copy
+from logging_config import get_logger
 
 from chess import pgn
 
@@ -9,14 +10,11 @@ from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 import io
 
 # Configure logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
+logger = get_logger(__name__)
 
 class ChessBoard:
     def __init__(self):
-        logging.info("Initializing ChessBoard")
+        logger.info("Initializing ChessBoard")
         self.move_count = 0
         self.player_turn = "white"
         self.material = -1
@@ -52,12 +50,12 @@ class ChessBoard:
             self.board[6][i] = Pawn("black")
 
         self.openings = self.load_openings("./openings/all.tsv")
-        logging.info("ChessBoard initialized")
+        logger.info("ChessBoard initialized")
 
     def load_openings(self, file_path):
-        logging.info(f"Loading openings from {file_path}")
+        logger.info(f"Loading openings from {file_path}")
         openings = {}
-        print("path:", file_path)
+        logger.info(f"path: {file_path}")
         with open(file_path, newline="", encoding="utf-8") as tsvfile:
             reader = csv.reader(tsvfile, delimiter="\t")
             for row in reader:
@@ -72,7 +70,7 @@ class ChessBoard:
         for moves, name in self.openings.items():
             if current_moves.startswith(moves):
                 opening = name
-                logging.debug(f"Current opening: {opening}")
+                logger.debug(f"Current opening: {opening}")
                 return opening
         return "Unknown Opening"
 
@@ -85,8 +83,7 @@ class ChessBoard:
         # convert to EPD (FEN with no move numbers)
         board = chess.Board(self.board_array_to_fen())
         epd = board.epd()
-        print(epd)
-        logging.debug(f"EPD: {epd}")
+        logger.debug(f"EPD: {epd}")
         return epd
 
     """
@@ -97,8 +94,7 @@ class ChessBoard:
     def get_all_valid_moves(self):
         board = chess.Board(self.board_array_to_fen())
         valid_moves = [move.uci() for move in board.legal_moves]
-        print(valid_moves)
-        logging.debug(f"All valid moves: {valid_moves}")
+        logger.debug(f"All valid moves: {valid_moves}")
         return valid_moves
 
     """
@@ -136,7 +132,7 @@ class ChessBoard:
         with open(file_name, "w") as pgn_file:
             pgn_file.write(pgn_string)
 
-        logging.info(f"PGN file saved as {file_name}")
+        logger.info(f"PGN file saved as {file_name}")
         return file_name
 
     """
@@ -154,7 +150,7 @@ class ChessBoard:
                         material += self.board[x][y].weight
                     else:
                         material -= self.board[x][y].weight
-        logging.debug(f"Material count for {colour}: {material}")
+        logger.debug(f"Material count for {colour}: {material}")
         return material
 
     """
@@ -176,8 +172,8 @@ class ChessBoard:
                     )
 
         for i in range(0, 8):
-            print(self.board_cache[i * 8 : i * 8 + 8])
-        logging.debug("Board displayed as text")
+            logger.debug(self.board_cache[i * 8 : i * 8 + 8])
+        logger.debug("Board displayed as text")
 
     """
     takes no arguments
@@ -196,8 +192,8 @@ class ChessBoard:
                     colours.append("|" + self.board[x][y].colour[0:2] + "|")
 
         for i in range(0, 8):
-            print(colours[i * 8 : i * 8 + 8])
-        logging.debug("Board displayed as colours")
+            logger.debug(colours[i * 8 : i * 8 + 8])
+        logger.debug("Board displayed as colours")
 
     """
     takes no arguments
@@ -213,8 +209,8 @@ class ChessBoard:
                 coordinates.append(f"|{x}{y}|")
 
         for i in range(0, 8):
-            print(coordinates[i * 8 : i * 8 + 8])
-        logging.debug("Board displayed as coordinates")
+            logger.debug(coordinates[i * 8 : i * 8 + 8])
+        logger.debug("Board displayed as coordinates")
 
     """
     take a x and y for starting take an x any y for end pos
@@ -234,9 +230,9 @@ class ChessBoard:
                     and self.board[x][y + 1].first_move
                     and self.board[x + direction][y + 1] is None
                 ):
-                    print("pawn on ", x, y + 1)
+                    logger.debug(f"pawn on ({x}, {y + 1})")
                     result = True
-                    logging.debug(
+                    logger.debug(
                         f"En passant check at ({x}, {y}) for {colour}: {result}"
                     )
                     return result
@@ -246,9 +242,9 @@ class ChessBoard:
                     and self.board[x][y - 1].first_move
                     and self.board[x + direction][y - 1] is None
                 ):
-                    print("pawn on", x, y - 1)
+                    logger.debug(f"pawn on ({x}, {y - 1})")
                     result = True
-                    logging.debug(
+                    logger.debug(
                         f"En passant check at ({x}, {y}) for {colour}: {result}"
                     )
                     return result
@@ -270,27 +266,27 @@ class ChessBoard:
                 # king can castle
                 if board[0][0].first_move:
                     result = "queenside"
-                    logging.debug(f"Castling check for {player_colour}: {result}")
+                    logger.debug(f"Castling check for {player_colour}: {result}")
                     return result
 
                 if board[0][7].first_move:
                     result = "kingside"
-                    logging.debug(f"Castling check for {player_colour}: {result}")
+                    logger.debug(f"Castling check for {player_colour}: {result}")
                     return result
 
             if player_colour == "black" and (board[7][3].first_move):
                 # king can castle
                 if board[7][0].first_move:
                     result = "queenside"
-                    logging.debug(f"Castling check for {player_colour}: {result}")
+                    logger.debug(f"Castling check for {player_colour}: {result}")
                     return result
 
                 if board[7][7].first_move:
                     result = "kingside"
-                    logging.debug(f"Castling check for {player_colour}: {result}")
+                    logger.debug(f"Castling check for {player_colour}: {result}")
                     return result
         except Exception as e:
-            print(e)
+            logger.error(f"Error in castling: {e}")
         return False
 
     """
@@ -301,15 +297,15 @@ class ChessBoard:
     """
 
     def move_piece(self, x, y, endx, endy):
-        logging.info(f"Attempting to move piece from ({x}, {y}) to ({endx}, {endy})")
+        logger.info(f"Attempting to move piece from ({x}, {y}) to ({endx}, {endy})")
         # where there is no piece return False
         if self.board[x][y] is None:
-            logging.warning("No piece at this position")
+            logger.warning("No piece at this position")
             return False
 
         # check if it's the correct turn
         if self.board[x][y].colour != self.player_turn:
-            logging.warning(f"It's {self.player_turn}'s turn")
+            logger.warning(f"It's {self.player_turn}'s turn")
             return False
 
         # enpesaunt rules
@@ -325,12 +321,12 @@ class ChessBoard:
             and not is_enpesaunt
             and not is_castling  # returns False if no castling opportunity
         ):
-            logging.warning("Invalid move, not legal")
+            logger.warning("Invalid move, not legal")
             return False
 
         # check if the move caused the player to be in check
         if self.are_you_in_check(self.player_turn) == (1 or 2):
-            logging.warning("Invalid move (check)")
+            logger.warning("Invalid move (check)")
             return False
 
         # remove enpesaunt pawn
@@ -372,28 +368,28 @@ class ChessBoard:
         self.move_count += 1
 
         # log the board state before the move
-        logging.debug(f"Board state before move: {self.board}")
+        logger.debug(f"Board state before move: {self.board}")
 
         # move the actual piece
         piece = self.board[x][y]
-        logging.info(
+        logger.info(
             f"Moving piece: {piece.__class__.__name__} from ({x}, {y}) to ({endx}, {endy})"
         )
         self.board[endx][endy] = piece
         self.board[x][y] = None
 
         # log the board state after the move
-        logging.debug(f"Board state after move: {self.board}")
+        logger.debug(f"Board state after move: {self.board}")
 
         # switch the turn
         self.player_turn = "black" if self.player_turn == "white" else "white"
-        logging.info("Move successful")
+        logger.info("Move successful")
 
-        logging.debug(
+        logger.debug(
             f"{piece.__class__.__name__} moved to ({endx}, {endy}) , {self.board[endx][endy].__class__.__name__} at ({x}, {y}) removed"
         )
 
-        logging.debug(f"Valid Moves: {valid_moves}")
+        logger.debug(f"Valid Moves: {valid_moves}")
         # Display the updated board
         self.display_board_as_text()
 
@@ -405,8 +401,8 @@ class ChessBoard:
     """
 
     def promote_pawn(self, x, y, piece):
-        logging.info(f"Promoting pawn at ({x}, {y}) to {piece.__name__}")
-        print(self.board[x][y].__class__.__name__)
+        logger.info(f"Promoting pawn at ({x}, {y}) to {piece.__name__}")
+        logger.debug(self.board[x][y].__class__.__name__)
 
         colour = self.board[x][y].colour
         self.board[x][y] = piece(colour)
@@ -419,7 +415,7 @@ class ChessBoard:
         result = (
             self.are_you_in_check("white") == 2 or self.are_you_in_check("black") == 2
         )
-        logging.info(f"Game over = {result}")
+        logger.info(f"Game over = {result}")
         return result
 
     """
@@ -435,68 +431,96 @@ class ChessBoard:
                     and self.board[x][y].colour == colour
                 ):
                     position = (x, y)
-                    logging.debug(f"King position for {colour}: {position}")
+                    logger.debug(f"King position for {colour}: {position}")
                     return position
 
     """
-    Takes no colour and returns
+    Takes the colour of the player
+    Returns:
     2 for checkmate
     1 for check
     0 for no check
     """
-
     def are_you_in_check(self, player_colour):
-        king_position = self.get_king_position(player_colour)
+        try:
+            king_position = self.get_king_position(player_colour)
+            if not king_position:
+                # King not found, can't be in check
+                logger.warning(f"No {player_colour} king found on the board")
+                return 0
 
-        # check if any of the opponent's pieces can move to the king's position
-        for x in range(8):
-            for y in range(8):
-                piece = self.board[x][y]
-                if piece is not None and piece.colour != player_colour:
-                    try:
-                        if king_position in piece.get_valid_moves(self.board, x, y):
-                            # check if there are no valid moves that would result in the king not being in check
-                            for dx in range(-1, 2):
-                                for dy in range(-1, 2):
-                                    new_x, new_y = (
-                                        king_position[0] + dx,
-                                        king_position[1] + dy,
-                                    )
-                                    if 0 <= new_x < 8 and 0 <= new_y < 8:
-                                        # temporarily move the king
-                                        temp = self.board[new_x][new_y]
-                                        self.board[new_x][new_y] = self.board[
-                                            king_position[0]
-                                        ][king_position[1]]
-                                        self.board[king_position[0]][
-                                            king_position[1]
-                                        ] = None
-                                        # check if the king is still in check
-                                        if not self.are_you_in_check(player_colour):
-                                            # the king is not in check, so it's not checkmate
-                                            # move the king back
-                                            self.board[king_position[0]][
-                                                king_position[1]
-                                            ] = self.board[new_x][new_y]
-                                            self.board[new_x][new_y] = temp
-                                            status = 1  # for check
-                                            logging.debug(
-                                                f"Check status for {player_colour}: {status}"
-                                            )
-                                            return status
-                                        # move the king back
-                                        self.board[king_position[0]][
-                                            king_position[1]
-                                        ] = self.board[new_x][new_y]
-                                        self.board[new_x][new_y] = temp
-                            status = 2  # for checkmate
-                            logging.debug(f"Check status for {player_colour}: {status}")
-                            return status
-                    except ValueError:  # catch ValueError: Outside of board
-                        print("ValueError: Outside of board")
-        status = 0  # for no check
-        logging.debug(f"Check status for {player_colour}: {status}")
-        return status
+            # Check if any of the opponent's pieces can move to the king's position
+            for x in range(8):
+                for y in range(8):
+                    piece = self.board[x][y]
+                    if piece is not None and piece.colour != player_colour:
+                        try:
+                            valid_moves = piece.get_valid_moves(self.board, x, y)
+                            # Check if king's position is in the valid moves
+                            if king_position in valid_moves:
+                                # Check for checkmate
+                                if self.is_checkmate(player_colour, king_position):
+                                    return 2  # Checkmate
+                                return 1  # Check
+                        except Exception as e:
+                            logger.error(
+                                f"Error checking moves for piece at ({x},{y}): {e}"
+                            )
+                            continue
+            return 0  # No check
+        except Exception as e:
+            logger.error(f"Error in are_you_in_check: {e}")
+            return 0  # Safe default - no check
+
+    def is_checkmate(self, player_colour, king_position):
+        """Check if the king is in checkmate"""
+        king_x, king_y = king_position
+
+        # Try all possible king moves
+        king = self.board[king_x][king_y]
+        if not king:
+            return False
+
+        # Get all potential moves for the king
+        try:
+            king_moves = king.get_valid_moves(self.board, king_x, king_y)
+        except Exception:
+            # If we can't get moves, assume it's not checkmate
+            return False
+
+        # If king has no valid moves, check if any piece can block the check
+        if not king_moves:
+            # TODO: Check if any piece can block the check
+            return True
+
+        # For each potential king move, see if it's still in check
+        for move_x, move_y in king_moves:
+            # Make temporary move
+            temp_board = copy.deepcopy(self.board)
+            temp_board[move_x][move_y] = temp_board[king_x][king_y]
+            temp_board[king_x][king_y] = None
+
+            # Check if this position is still in check
+            still_in_check = False
+            for x in range(8):
+                for y in range(8):
+                    piece = temp_board[x][y]
+                    if piece and piece.colour != player_colour:
+                        try:
+                            valid_moves = piece.get_valid_moves(temp_board, x, y)
+                            if (move_x, move_y) in valid_moves:
+                                still_in_check = True
+                                break
+                        except Exception:
+                            continue
+                if still_in_check:
+                    break
+
+            # If any move escapes check, it's not checkmate
+            if not still_in_check:
+                return False
+
+        return True  # No escape moves found - checkmate
 
     """
     Takes no arguments
@@ -504,24 +528,24 @@ class ChessBoard:
     """
 
     def main(self):
-        logging.info("Starting main game loop")
+        logger.info("Starting main game loop")
         while not self.game_over():
             #! DEBUG TEMP REMOVE THIS
             # self.display_board_as_coordinates()
             self.display_board_as_text()
             elapsed_time = time.time() - self.start_time  # Calculate elapsed time
-            logging.info(f"Move count: {self.move_count}")
-            logging.info(f"Elapsed time: {elapsed_time:.2f} seconds")
-            logging.info(f"{self.player_turn.capitalize()} to move")
+            logger.info(f"Move count: {self.move_count}")
+            logger.info(f"Elapsed time: {elapsed_time:.2f} seconds")
+            logger.info(f"{self.player_turn.capitalize()} to move")
             x, y, endx, endy = map(int, input("Enter move: ").split())
             if self.move_piece(x, y, endx, endy):
                 self.player_turn = "black" if self.player_turn == "white" else "white"
             else:
-                print("Invalid move")
-        logging.info("Game over")
+                logger.warning("Invalid move")
+        logger.info("Game over")
 
 
 if __name__ == "__main__":
-    logging.info("Starting ChessBoard application")
+    logger.info("Starting ChessBoard application")
     board_instance = ChessBoard()
     board_instance.main()

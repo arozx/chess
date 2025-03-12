@@ -4,6 +4,11 @@ import dotenv
 import os
 
 
+from logging import getLogger
+
+logger = getLogger(__name__)
+
+
 class DBConnector:
     def __init__(self, env=True):
         if env:
@@ -153,4 +158,4 @@ if __name__ == "__main__":
     paswd = "jack2"
     user = "jack2"
     db.insert_user(user, paswd)
-    print(db.verify_user(user, paswd))
+    logger.info(db.verify_user(user, paswd))

@@ -1,6 +1,7 @@
 import unittest
 from mcts import Node, MCTS
 from pieces import Rook, Knight, Bishop, Queen, King, Pawn
+import time
 
 
 class TestMCTS(unittest.TestCase):
@@ -32,7 +33,7 @@ class TestMCTS(unittest.TestCase):
             self.initial_board_array[6][i] = Pawn("black")
 
         self.root_node = Node(self.initial_board_array)
-        self.mcts = MCTS(self.root_node, iterations=10, is_white=1)
+        self.mcts = MCTS(self.root_node, iterations=1000, is_white=1)
 
     def test_node_initialization(self):
         node = Node(self.initial_board_array)
@@ -95,6 +96,13 @@ class TestMCTS(unittest.TestCase):
         self.mcts.run()
         best_move = self.mcts.best_move()
         self.assertIsNotNone(best_move)
+
+    def test_mcts_time_limit(self):
+        start_time = time.time()
+        best_move = self.mcts.run()
+        end_time = time.time()
+        self.assertIsNotNone(best_move)
+        self.assertLessEqual(end_time - start_time, 5)
 
 
 if __name__ == "__main__":

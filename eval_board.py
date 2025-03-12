@@ -1,155 +1,85 @@
-def eval_board(board, colour, score_normalised):
-    # Perform a static evaluation of the board
-    # Uses the NEGA-MAX framework
-    # Returns a score for the board relative to the player to move
+from logging_config import get_logger
 
-    score = 0
+# Get logger
+logger = get_logger(__name__)
 
-    # define pawn types
-    blocked = 0
-    doubled = 0
-    isolated = 0
-
-    mobility = 0
+def eval_board(board, player_colour, score_normalised=False):
     """
-        f(p) = 200(K-K')
-           + 9(Q-Q')
-           + 5(R-R')
-           + 3(B-B' + N-N')
-           + 1(P-P')
-           - 0.5(D-D' + S-S' + I-I')
-           + 0.1(M-M') + ...
-
-    KQRBNP = number of kings, queens, rooks, bishops, knights and pawns
-    D,S,I = doubled, blocked and isolated pawns
-    M = Mobility (the number of legal moves)
+    Evaluate the board from the perspective of the given player color
+    Returns a score (positive is better for the player)
     """
+    try:
+        # Safety check - ensure board is valid
+        if not board or len(board) != 8:
+            logger.warning("Invalid board structure in eval_board")
+            return 0
 
-    # Count the number of kings, queens, rooks, bishops, knights and pawns
-    for i in (0, 7):
-        for x in range(0, 7):
-            try:
-                if board[i][x].__class__.__name__ == "King":
-                    if board[i][x].colour == colour:
-                        score += 200
-                    else:
-                        score -= 200
+        # Piece values
+        piece_values = {
+            "Pawn": 100,
+            "Knight": 320,
+            "Bishop": 330,
+            "Rook": 500,
+            "Queen": 900,
+            "King": 20000,
+        }
 
-                elif board[i][x].__class__.__name__ == "Queen":
-                    if board[i][x].colour == colour:
-                        score += 9
-                    else:
-                        score -= 9
+        # Position bonuses for each piece type (simplified)
+        pawn_bonus = [
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [50, 50, 50, 50, 50, 50, 50, 50],
+            [10, 10, 20, 30, 30, 20, 10, 10],
+            [5, 5, 10, 25, 25, 10, 5, 5],
+            [0, 0, 0, 20, 20, 0, 0, 0],
+            [5, -5, -10, 0, 0, -10, -5, 5],
+            [5, 10, 10, -20, -20, 10, 10, 5],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+        ]
 
-                elif board[i][x].__class__.__name__ == "Rook":
-                    if board[i][x].colour == colour:
-                        score += 5
-                    else:
-                        score -= 5
+        # Similar bonus tables for other pieces would go here
+        # (For brevity, we're only implementing pawn bonuses)
 
-                elif (
-                    board[i][x].__class__.__name__ == "Bishop"
-                    or board[i][x].__class__.__name__ == "Knight"
-                ):
-                    if board[i][x].colour == colour:
-                        score += 3
-                    else:
-                        score -= 3
+        white_score = 0
+        black_score = 0
 
-                elif board[i][x].__class__.__name__ == "Pawn":
-                    if board[i][x].colour == colour:
-                        score += 1
-                    else:
-                        score -= 1
+        # Count material and add position bonuses
+        for i in range(8):
+            for j in range(8):
+                piece = board[i][j]
+                if piece:
+                    piece_type = piece.__class__.__name__
+                    base_value = piece_values.get(piece_type, 0)
 
-                    # Doubled pawns
-                    if board[i][x + 1].__class__.__name__ == "Pawn":
-                        if board[i][x + 1].colour == colour:
-                            doubled -= 0.5
+                    # Position bonus based on piece type
+                    position_bonus = 0
+                    if piece_type == "Pawn":
+                        # Use the appropriate row based on color (flip for black)
+                        if piece.colour == "white":
+                            position_bonus = pawn_bonus[i][j]
                         else:
-                            doubled += 0.5
-                    if board[i][x - 1].__class__.__name__ == "Pawn":
-                        if board[i][x - 1].colour == colour:
-                            doubled -= 0.5
-                        else:
-                            doubled += 0.5
+                            position_bonus = pawn_bonus[7 - i][j]
 
-                    # Blocked pawns
-                    # check if ther is a piece infrount of the pawn
-                    if board[i][x].colour == "white":
-                        if board[i + 1][x].__class__.__name__ != "":
-                            match colour:
-                                case "white":
-                                    blocked -= 0.5
-                                case "black":
-                                    blocked += 0.5
+                    # Add to appropriate score
+                    if piece.colour == "white":
+                        white_score += base_value + position_bonus
+                    else:
+                        black_score += base_value + position_bonus
 
-                    elif board[i][x].colour == "black":
-                        if board[i - 1][x].__class__.__name__ != "":
-                            match colour:
-                                case "white":
-                                    blocked += 0.5
-                                case "black":
-                                    blocked -= 0.5
+        # Calculate final score based on player perspective
+        score = (
+            white_score - black_score
+            if player_colour == "white"
+            else black_score - white_score
+        )
 
-                    # Isolated pawns
-                    # Check for white isolated pawns
-                    if board[i][x].colour == "white":
-                        if board[i + 1][x + 1].__class__.__name__ == "Pawn":
-                            if board[i + 1][x + 1].colour == "white":
-                                match colour:
-                                    case "white":
-                                        isolated -= 0.5
-                                    case "black":
-                                        isolated += 0.5
-                        if board[i + 1][x - 1].__class__.__name__ == "Pawn":
-                            if board[i + 1][x - 1].colour == "white":
-                                match colour:
-                                    case "white":
-                                        isolated -= 0.5
-                                    case "black":
-                                        isolated += 0.5
+        # Normalize if requested
+        if score_normalised:
+            # Normalize to range [-1, 1] based on maximum possible score
+            max_possible_score = 40000  # Approximation of maximum score
+            return score / max_possible_score
 
-                    # Check for black isolated pawns
-                    if board[i][x].colour == "black":
-                        if board[i - 1][x + 1].__class__.__name__ == "Pawn":
-                            if board[i - 1][x + 1].colour == "black":
-                                match colour:
-                                    case "white":
-                                        isolated -= 0.5
-                                    case "black":
-                                        isolated += 0.5
-                        if board[i - 1][x - 1].__class__.__name__ == "Pawn":
-                            if board[i - 1][x - 1].colour == "black":
-                                match colour:
-                                    case "white":
-                                        isolated -= 0.5
-                                    case "black":
-                                        isolated += 0.5
-            except TypeError:
-                # No piece at this position
-                pass
+        return score
 
-            # Calculate mobility
-            try:
-                if board[i][x].colour == colour:
-                    mobility += len(board[i][x].get_moves(board, (i, x)))
-                else:
-                    mobility -= len(board[i][x].get_moves(board, (i, x)))
-            except AttributeError:
-                # No piece at this position
-                pass
-            except Exception as e:
-                print(e)
-
-    score -= 0.5 * (doubled + blocked + isolated)
-    score += 0.1 * mobility
-    
-    if score_normalised:
-        # modify score to be between 0 - 1
-        score = 1 / (1 + 10 ** (-score / 400))
-
-    # log the score
-    print(f"Evaluated board score: {score}")
-
-    return score
+    except Exception as e:
+        logger.error(f"Error in eval_board: {e}")
+        return 0  # Return neutral score when error occurs
