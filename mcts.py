@@ -10,6 +10,11 @@ import copy
 import time
 import random
 from logging_config import get_logger
+from performance_monitoring import (
+    track_performance,
+    measure_operation,
+    track_slow_operations,
+)
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 from eval_board import eval_board
@@ -30,6 +35,7 @@ class Node:
     def is_leaf(self):
         return len(self.children) == 0
 
+    @track_performance(op="mcts", name="expand_node")
     def expand(self, all_valid_moves):
         for move in all_valid_moves:
             new_board_array = self.apply_move(self.state.board, move)
@@ -37,6 +43,7 @@ class Node:
                 child = Node(new_board_array, move, self)
                 self.children.append(child)
 
+    @track_performance(op="mcts", name="apply_move")
     def apply_move(self, board_array, move):
         new_board_array = copy.deepcopy(board_array)
         from_square, to_square = move
@@ -82,7 +89,7 @@ class MCTS:
         game,
         iterations=1000,
         exploration_weight=1.41,
-        time_limit=None,
+        time_limit=5,
         is_white=True,
     ):
         self.game = game
@@ -92,257 +99,105 @@ class MCTS:
         self.is_white = is_white
         self.nodes = {}
         self.root = None
+        self.start_time = None
 
-    def run(self):
-        """
-        Execute the MCTS algorithm from the root node.
-        Returns the best move found.
-        """
-        start_time = time.time()
-
-        # Initialize root with current game state
-        initial_state = GameState(
-            self.game.chess_board.board,
-            "black" if not self.is_white else "white",  # Ensure correct player turn
-        )
-
-        logger.info(f"MCTS running for {'white' if self.is_white else 'black'} player")
-        logger.info(f"Root state player turn: {initial_state.player_turn}")
-        self.root = Node(initial_state)
-
-        # Explicitly get legal moves and expand the root node first
-        root_legal_moves = self.game.get_legal_moves(self.root.state)
-        logger.info(f"Found {len(root_legal_moves)} legal moves for root node")
-
-        # Directly create child nodes for the root
-        for move in root_legal_moves:
-            try:
-                new_state = self.game.apply_move(self.root.state, move)
-                if new_state:
-                    child = Node(new_state, move, self.root)
-                    self.root.children.append(child)
-                    logger.debug(f"Added child for move {move}")
-            except Exception as e:
-                logger.error(f"Error adding child for move {move}: {e}")
-
-        logger.info(f"Root now has {len(self.root.children)} children")
-
-        if not self.root.children:
-            logger.warning(
-                "Failed to add any children to root. Debugging move application:"
-            )
-            # Try to debug the first few moves
-            for i, move in enumerate(root_legal_moves[:5]):
-                try:
-                    source, target = move
-                    source_row, source_col = source
-                    target_row, target_col = target
-                    piece = self.game.chess_board.board[source_row][source_col]
-                    logger.debug(f"Testing move {i}: {move}")
-                    logger.debug(
-                        f"Piece at source: {piece.__class__.__name__ if piece else 'None'}"
-                    )
-                    logger.debug(f"Piece color: {piece.colour if piece else 'N/A'}")
-                    logger.debug(f"Current player turn: {self.root.state.player_turn}")
-
-                    # Verify that the piece belongs to the current player
-                    if piece and piece.colour == self.root.state.player_turn:
-                        logger.debug(f"Move {i} has correct piece color")
-                    else:
-                        logger.debug(f"Move {i} has WRONG piece color!")
-                except Exception as e:
-                    logger.error(f"Error debugging move {i}: {e}")
-
-        # Continue with the MCTS algorithm
-        for i in range(self.iterations):
-            if self.time_limit and time.time() - start_time > self.time_limit:
+    @track_performance(op="mcts", name="select_node")
+    def select(self, node):
+        while not node.is_leaf() and not self.game.is_terminal(node):
+            if not node.children:
                 break
+            node = self.get_best_uct(node)
+        return node
 
-            # Select a leaf node
-            leaf = self.select(self.root)
+    @track_performance(op="mcts", name="expand")
+    def expand(self, node):
+        if not self.game.is_terminal(node):
+            valid_moves = self.game.get_legal_moves(node)
+            node.expand(valid_moves)
 
-            # Expand the leaf node if it's not terminal and not already expanded
-            if not leaf.is_leaf() and not self.game.is_terminal(leaf.state):
-                moves = self.game.get_legal_moves(leaf.state)
-                for move in moves:
-                    new_state = self.game.apply_move(leaf.state, move)
-                    if new_state:
-                        child = Node(new_state, move, leaf)
-                        leaf.children.append(child)
+    @track_performance(op="mcts", name="simulate")
+    def simulate(self, node):
+        state = node.state.clone()
+        depth = 0
+        max_depth = 50  # Prevent infinite loops
 
-            # Select a random child if available
-            simulation_leaf = leaf
-            if leaf.children:
-                simulation_leaf = random.choice(leaf.children)
+        while not self.game.is_terminal(state) and depth < max_depth:
+            valid_moves = self.game.get_legal_moves(state)
+            if not valid_moves:
+                break
+            move = random.choice(valid_moves)
+            state = self.game.apply_move(state, move)
+            if state is None:
+                break
+            depth += 1
 
-            # Simulate a random game from this position
-            reward = self.simulate(simulation_leaf)
+        return self.game.get_reward(state, self.is_white)
 
-            # Backpropagate the result
-            self.backpropagate(simulation_leaf, reward)
+    @track_performance(op="mcts", name="backpropagate")
+    def backpropagate(self, node, reward):
+        while node is not None:
+            node.update(reward)
+            node = node.parent
 
-        return self.best_move()
+    def get_best_uct(self, node):
+        exploration = 1.4
+        best_score = float("-inf")
+        best_child = None
 
-    def best_move(self):
-        """
-        Find the best move among the children of the root node
-        """
-        if not self.root or not self.root.children:
-            logger.warning("No children in the root node")
-            logger.debug(
-                f"Root state player turn: {self.root.state.player_turn if self.root else 'None'}"
+        for child in node.children:
+            if child.visits == 0:
+                return child
+
+            exploitation = child.value / child.visits
+            exploration_term = exploration * math.sqrt(
+                math.log(node.visits) / child.visits
             )
-            logger.debug(
-                f"Children count: {len(self.root.children) if self.root else 'None'}"
-            )
+            uct_score = exploitation + exploration_term
+
+            if uct_score > best_score:
+                best_score = uct_score
+                best_child = child
+
+        return best_child
+
+    @track_performance(op="mcts", name="get_best_move")
+    def get_best_move(self, root):
+        if not root.children:
             return None
 
-        # Print all children and their visit counts for debugging
-        logger.info(f"Root has {len(self.root.children)} children:")
-        for i, child in enumerate(self.root.children):
-            logger.debug(
-                f"Child {i}: Move {child.move}, Visits {child.visits}, Value {child.value}"
-            )
+        best_child = max(root.children, key=lambda c: c.visits)
+        return best_child.move
 
-        # Choose the child with the highest visit count
-        if self.root.children:
-            best_child = max(self.root.children, key=lambda c: c.visits)
-            logger.info(
-                f"Best child: Move {best_child.move}, Visits {best_child.visits}, Value {best_child.value}"
-            )
-            return best_child.move
-        return None
+    @track_performance(op="mcts", name="run_mcts")
+    def run(self):
+        with measure_operation(
+            "mcts_search", "ai_processing", tags={"iterations": self.iterations}
+        ) as span:
+            self.start_time = time.time()
+            root = Node(self.game.chess_board)
 
-    def search(self, state):
-        start_time = time.time()
-        for _ in range(self.iterations):
-            if self.time_limit and time.time() - start_time > self.time_limit:
-                break
-            self.simulate(state)
-
-    def select(self, node):
-        """
-        Select a leaf node using UCT.
-        Returns the selected node, not a path.
-        """
-        current = node
-        while not current.is_leaf():
-            # Choose the best child according to UCT
-            best_value = float("-inf")
-            best_child = None
-
-            for child in current.children:
-                if child.visits == 0:
-                    return child  # Select unexplored node first
-
-                # UCT formula
-                exploit = child.value / child.visits
-                explore = self.exploration_weight * math.sqrt(
-                    2 * math.log(current.visits) / child.visits
-                )
-                uct_value = exploit + explore
-
-                if uct_value > best_value:
-                    best_value = uct_value
-                    best_child = child
-
-            if best_child is None:
-                return current
-            current = best_child
-
-        return current
-
-    def simulate(self, node):
-        """
-        Run a simulation from the node's state to a terminal position,
-        then return the reward.
-        """
-        try:
-            # Always use the node's state, not the node itself
-            current_state = node.state
-            depth = 0
-            max_depth = 30  # Reduce to prevent excessive computation
-
-            while depth < max_depth:
-                try:
-                    # Check terminal state with a try/except to handle errors
-                    terminal = False
-                    try:
-                        terminal = self.game.is_terminal(current_state)
-                    except Exception as e:
-                        logger.error(f"Error checking terminal state: {e}")
-                        break
-
-                    if terminal:
-                        break
-
-                    legal_moves = []
-                    try:
-                        legal_moves = self.game.get_legal_moves(current_state)
-                    except Exception as e:
-                        logger.error(f"Error getting legal moves: {e}")
-                        break
-
-                    if not legal_moves:
-                        break
-
-                    move = random.choice(legal_moves)
-                    new_state = None
-                    try:
-                        new_state = self.game.apply_move(current_state, move)
-                    except Exception as e:
-                        logger.error(f"Error applying move: {e}")
-                        break
-
-                    if not new_state:
-                        break
-
-                    current_state = new_state
-                    depth += 1
-
-                except Exception as e:
-                    logger.error(f"Error in simulation loop: {e}")
+            for i in range(self.iterations):
+                if time.time() - self.start_time > self.time_limit:
+                    logger.info(f"MCTS stopped after {i} iterations due to time limit")
+                    span.set_data("actual_iterations", i)
                     break
 
-            # Calculate reward carefully with exception handling
-            try:
-                if hasattr(self.game, "get_reward"):
-                    return self.game.get_reward(current_state, self.is_white)
-                else:
-                    return (
-                        eval_board(
-                            current_state.board,
-                            "white" if self.is_white else "black",
-                            score_normalised=False,
-                        )
-                        / 100.0
-                    )
-            except Exception as e:
-                logger.error(f"Error calculating reward: {e}")
-                return 0.0
+                with measure_operation(
+                    "mcts_iteration", "ai_processing", tags={"iteration": i}
+                ) as iteration_span:
+                    selected_node = self.select(root)
+                    self.expand(selected_node)
 
-        except Exception as e:
-            logger.error(f"Global simulation error: {e}")
-            return 0.0  # Safe default
+                    if selected_node.children:  # If expansion was successful
+                        child = random.choice(selected_node.children)
+                        reward = self.simulate(child)
+                        self.backpropagate(child, reward)
 
-    def expand(self, state):
-        if state in self.nodes:
-            return
-        self.nodes[state] = {
-            "children": self.game.get_legal_moves(state),
-            "unexplored": set(self.game.get_legal_moves(state)),
-            "visits": 0,
-            "reward": 0,
-        }
+            best_move = self.get_best_move(root)
+            span.set_data("final_iterations", root.visits)
+            span.set_data("best_move", str(best_move) if best_move else None)
 
-    def backpropagate(self, node, reward):
-        """
-        Backpropagate the reward from the leaf node to the root.
-        """
-        while node:
-            node.visits += 1
-            node.value += reward
-            node = node.parent
+            return best_move
 
     def best_uct(self, state):
         children = self.nodes[state]["children"]

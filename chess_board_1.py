@@ -4,6 +4,11 @@ import csv
 import copy
 import sentry_sdk
 from logging_config import get_logger
+from performance_monitoring import (
+    track_performance,
+    measure_operation,
+    track_slow_operations,
+)
 
 from chess import pgn
 
@@ -16,47 +21,54 @@ logger = get_logger(__name__)
 class ChessBoard:
     def __init__(self):
         try:
-            logger.info("Initializing ChessBoard")
-            self.move_count = 0
-            self.player_turn = "white"
-            self.material = -1
-            self.start_time = time.time()  # Initialize start time
+            with measure_operation("init_chess_board", "initialization"):
+                logger.info("Initializing ChessBoard")
+                self.move_count = 0
+                self.player_turn = "white"
+                self.material = -1
+                self.start_time = time.time()  # Initialize start time
 
-            self.board = [[None for _ in range(8)] for _ in range(8)]
+                self.board = [[None for _ in range(8)] for _ in range(8)]
 
-            # Initialize board_cache with the correct size
-            self.board_cache = ["|  |" for _ in range(64)]
+                # Initialize board_cache with the correct size
+                self.board_cache = ["|  |" for _ in range(64)]
 
-            # Create white pieces
-            self.board[0][0] = Rook("white")
-            self.board[0][1] = Knight("white")
-            self.board[0][2] = Bishop("white")
-            self.board[0][4] = Queen("white")
-            self.board[0][3] = King("white")
-            self.board[0][5] = Bishop("white")
-            self.board[0][6] = Knight("white")
-            self.board[0][7] = Rook("white")
-            for i in range(8):
-                self.board[1][i] = Pawn("white")
+                # Initialize pieces with performance tracking
+                self._initialize_pieces()
 
-            # Create black pieces
-            self.board[7][0] = Rook("black")
-            self.board[7][1] = Knight("black")
-            self.board[7][2] = Bishop("black")
-            self.board[7][4] = Queen("black")
-            self.board[7][3] = King("black")
-            self.board[7][5] = Bishop("black")
-            self.board[7][6] = Knight("black")
-            self.board[7][7] = Rook("black")
-            for i in range(8):
-                self.board[6][i] = Pawn("black")
-
-            self.openings = self.load_openings("./openings/all.tsv")
-            logger.info("ChessBoard initialized")
+                self.openings = self.load_openings("./openings/all.tsv")
+                logger.info("ChessBoard initialized")
         except Exception as e:
             logger.error(f"Error initializing chess board: {e}")
             sentry_sdk.capture_exception(e)
             raise
+
+    @track_performance(op="initialization", name="initialize_pieces")
+    def _initialize_pieces(self):
+        """Initialize chess pieces with performance tracking"""
+        # Create white pieces
+        self.board[0][0] = Rook("white")
+        self.board[0][1] = Knight("white")
+        self.board[0][2] = Bishop("white")
+        self.board[0][4] = Queen("white")
+        self.board[0][3] = King("white")
+        self.board[0][5] = Bishop("white")
+        self.board[0][6] = Knight("white")
+        self.board[0][7] = Rook("white")
+        for i in range(8):
+            self.board[1][i] = Pawn("white")
+
+        # Create black pieces
+        self.board[7][0] = Rook("black")
+        self.board[7][1] = Knight("black")
+        self.board[7][2] = Bishop("black")
+        self.board[7][4] = Queen("black")
+        self.board[7][3] = King("black")
+        self.board[7][5] = Bishop("black")
+        self.board[7][6] = Knight("black")
+        self.board[7][7] = Rook("black")
+        for i in range(8):
+            self.board[6][i] = Pawn("black")
 
     def load_openings(self, file_path):
         try:
@@ -281,6 +293,7 @@ class ChessBoard:
     returns True if move is valid
     """
 
+    @track_performance(op="en_passant", name="check_en_passant")
     def enpesaunt(self, x, y, colour):
         try:
             if isinstance(self.board[x][y], Pawn):
@@ -320,6 +333,7 @@ class ChessBoard:
     returns "kingside" or "queenside"
     """
 
+    @track_performance(op="castling", name="check_castling")
     def castling(self, board, player_colour):
         # check if the king has moved
         try:
@@ -357,24 +371,14 @@ class ChessBoard:
     Returns False for an illegal move
     """
 
+    @track_performance(op="move", name="move_piece")
     def move_piece(self, x, y, endx, endy):
         try:
-            with sentry_sdk.start_span(
-                op="chess.move_piece",
-                description=f"Move piece from ({x},{y}) to ({endx},{endy})",
-            ) as span:
-                span.set_tag("start_pos", f"{x},{y}")
-                span.set_tag("end_pos", f"{endx},{endy}")
-                span.set_tag(
-                    "piece_type",
-                    self.board[x][y].__class__.__name__ if self.board[x][y] else "None",
-                )
-                span.set_tag("player_turn", self.player_turn)
-
-                logger.info(
-                    f"Attempting to move piece from ({x}, {y}) to ({endx}, {endy})"
-                )
-
+            with measure_operation(
+                "validate_move",
+                "move_validation",
+                tags={"start_pos": f"{x},{y}", "end_pos": f"{endx},{endy}"},
+            ):
                 # where there is no piece return False
                 if self.board[x][y] is None:
                     logger.warning("No piece at this position")
@@ -448,13 +452,21 @@ class ChessBoard:
                 # log the board state before the move
                 logger.debug(f"Board state before move: {self.board}")
 
-                # move the actual piece
-                piece = self.board[x][y]
-                logger.info(
-                    f"Moving piece: {piece.__class__.__name__} from ({x}, {y}) to ({endx}, {endy})"
-                )
-                self.board[endx][endy] = piece
-                self.board[x][y] = None
+                # Track the actual move operation
+                with measure_operation(
+                    "execute_move",
+                    "move_execution",
+                    tags={
+                        "piece_type": self.board[x][y].__class__.__name__,
+                        "player": self.player_turn,
+                    },
+                ):
+                    piece = self.board[x][y]
+                    logger.info(
+                        f"Moving piece: {piece.__class__.__name__} from ({x}, {y}) to ({endx}, {endy})"
+                    )
+                    self.board[endx][endy] = piece
+                    self.board[x][y] = None
 
                 # log the board state after the move
                 logger.debug(f"Board state after move: {self.board}")
@@ -493,6 +505,7 @@ class ChessBoard:
     Takes No arguments and returns a number based on weather the player is in check
     """
 
+    @track_slow_operations(threshold_seconds=0.5)
     def game_over(self):
         result = (
             self.are_you_in_check("white") == 2 or self.are_you_in_check("black") == 2
@@ -523,6 +536,8 @@ class ChessBoard:
     1 for check
     0 for no check
     """
+
+    @track_performance(op="check", name="check_status")
     def are_you_in_check(self, player_colour):
         try:
             with sentry_sdk.start_span(

@@ -5,6 +5,7 @@ import os
 import sentry_sdk
 from logging import getLogger
 import time
+from sentry_sdk import configure_scope, set_tag
 
 logger = getLogger(__name__)
 
@@ -12,6 +13,10 @@ logger = getLogger(__name__)
 class DBConnector:
     def __init__(self, env=True):
         try:
+            # Set database context for Sentry
+            with configure_scope() as scope:
+                scope.set_tag("database.connection", "initializing")
+
             if env:
                 dotenv.load_dotenv()
                 # load vars
@@ -25,9 +30,22 @@ class DBConnector:
                 self.DB_HOST = "localhost"
                 self.DB_PASSWORD = ""
 
+            # Update database context
+            with configure_scope() as scope:
+                scope.set_tag("database.name", self.DB_NAME)
+                scope.set_tag("database.host", self.DB_HOST)
+                scope.set_tag("database.user", self.DB_USER)
+
             # connect to the database
             self._connect()
+
+            # Set successful connection tag
+            with configure_scope() as scope:
+                scope.set_tag("database.connection", "connected")
+
         except Exception as e:
+            with configure_scope() as scope:
+                scope.set_tag("database.connection", "failed")
             logger.error(f"Failed to initialize database connection: {e}")
             sentry_sdk.capture_exception(e)
             raise
@@ -39,15 +57,21 @@ class DBConnector:
 
     def _connect(self):
         try:
-            self.conn = psycopg2.connect(
-                dbname=self.DB_NAME,
-                user=self.DB_USER,
-                host=self.DB_HOST,
-                password=self.DB_PASSWORD,
-            )
+            with sentry_sdk.start_span(
+                op="db.connect", description=f"Connect to database {self.DB_NAME}"
+            ) as span:
+                span.set_tag("db.name", self.DB_NAME)
+                span.set_tag("db.host", self.DB_HOST)
 
-            self.cursor = self.conn.cursor()
-            self.conn.commit()
+                self.conn = psycopg2.connect(
+                    dbname=self.DB_NAME,
+                    user=self.DB_USER,
+                    host=self.DB_HOST,
+                    password=self.DB_PASSWORD,
+                )
+
+                self.cursor = self.conn.cursor()
+                self.conn.commit()
         except Exception as e:
             logger.error(f"Database connection error: {e}")
             sentry_sdk.capture_exception(e)
@@ -73,11 +97,31 @@ class DBConnector:
 
     def __execute_query(self, query):
         try:
-            with sentry_sdk.start_span(op="db", description=query[:50]) as span:
+            with sentry_sdk.start_span(op="db.query", description=query[:50]) as span:
+                # Add query metadata
                 span.set_tag("query_type", query.split()[0].upper())
+                span.set_data("query", query)  # Will be sanitized by Sentry
+
+                # Add timing information
+                start_time = time.time()
                 cursor = self.conn.cursor()
                 cursor.execute(query)
                 self.conn.commit()
+                duration = time.time() - start_time
+
+                # Record query performance
+                span.set_data("duration", duration)
+                if duration > 1.0:  # Log slow queries
+                    logger.warning(f"Slow query detected: {duration:.2f}s")
+                    sentry_sdk.capture_message(
+                        "Slow database query detected",
+                        level="warning",
+                        extras={
+                            "query_duration": duration,
+                            "query_type": query.split()[0].upper(),
+                        },
+                    )
+
                 return cursor
         except Exception as e:
             logger.error(f"Query execution error: {e}")
