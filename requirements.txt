@@ -16,3 +16,4 @@ uvicorn
 gunicorn
 websockets
 requests
+sentry-sdk>=1.40.0

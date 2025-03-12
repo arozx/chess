@@ -7,6 +7,11 @@ import sys
 from logging_config import configure_logging
 from PyQt5.QtWidgets import QApplication
 from gui import ChessBoardUI
+from sentry_config import init_sentry
+import sentry_sdk
+
+# Initialize Sentry
+init_sentry()
 
 # Configure logging
 logger = configure_logging()
@@ -71,6 +76,12 @@ async def startup_event():
     This will be called when FastAPI starts.
     """
     logging.info("ChessBoard server is starting...")
+    try:
+        # Add any startup checks here
+        pass
+    except Exception as e:
+        logger.error(f"Startup error: {e}")
+        sentry_sdk.capture_exception(e)
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
@@ -93,21 +104,28 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         manager.disconnect(client_id)
     except Exception as e:
         logger.error(f"Error: {e}")
+        sentry_sdk.capture_exception(e)
         manager.disconnect(client_id)
 
 
 def main():
     """Main entry point for the application."""
     logger.info("Starting Chess Game Application")
-    app = QApplication(sys.argv)
-    window = ChessBoardUI()
-    window.show()
-    return app.exec_()
+    try:
+        app = QApplication(sys.argv)
+        window = ChessBoardUI()
+        window.show()
+        return app.exec_()
+    except Exception as e:
+        logger.critical(f"Unhandled exception: {e}")
+        sentry_sdk.capture_exception(e)
+        raise
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception as e:
         logger.critical(f"Unhandled exception: {e}")
+        sentry_sdk.capture_exception(e)
         logger.exception("Application crashed")
         sys.exit(1)

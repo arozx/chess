@@ -138,14 +138,12 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 2:
         # use production socket
-        websocket_url = (
-            "wss://green-pebble-140fdd8d9d1a4cc6881c9d6d7a14f0e4.azurewebsites.net/ws"
-        )
+        websocket_url = "wss://https://appori2n7.azurewebsites.net/ws"
 
     else:
         websocket_url = sys.argv[1]
 
-    websocket_url = "ws://localhost:8000/ws"
+    # websocket_url = "ws://localhost:8000/ws"
 
     client = ChessClient(websocket_url)
     sys.exit(app.exec_())

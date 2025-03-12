@@ -44,3 +44,10 @@ coverage.xml
 
 # development
 dev_tools
+
+# terraform
+terraform/.terraform*
+terraform/terraform.tfvars
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
