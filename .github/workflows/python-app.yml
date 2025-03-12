@@ -104,7 +104,7 @@ jobs:
       - name: Install test dependencies
         run: |
           sudo apt-get install -y xvfb
-          pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess psycopg2
+          pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess psycopg2 sentry_sdk
 
       # Run tests with coverage
       - name: Run tests with coverage
