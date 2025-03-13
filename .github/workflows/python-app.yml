@@ -38,7 +38,7 @@ jobs:
       # Install dependencies
       - name: Install dependencies
         run: |
-          pip install '.[monitoring]'
+          pip install -r requirements.txt && pip install sentry-sdk
 
   # Linting job
   lint:

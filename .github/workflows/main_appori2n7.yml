@@ -30,7 +30,7 @@ jobs:
           source venv/bin/activate
       
       - name: Install dependencies
-        run: pip install '.[monitoring]'
+        run: pip install -r requirements.txt && pip install sentry-sdk
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
