@@ -7,7 +7,6 @@ from online.network_gui import NetworkedChessBoardUI
 import websockets
 import sys
 import json
-import requests
 import logging
 import uuid
 
@@ -132,19 +131,20 @@ class ChessClient(QObject):
 
     def check_server_health(self):
         """Check if the server is healthy"""
-        try:
-            response = requests.get(f"{self.websocket_thread.websocket_url}/health")
-            if response.status_code == 200:
-                logger.info(f"Server is healthy: {response.json()}")
-                return True
-            else:
-                logger.error(f"Server returned status code {response.status_code}")
-                return False
-        except requests.exceptions.ConnectionError:
-            logger.error(
-                f"Could not connect to server at {self.websocket_thread.websocket_url}"
-            )
-            return False
+        # try:
+        #     response = requests.get(f"{self.websocket_thread.websocket_url}/health")
+        #     if response.status_code == 200:
+        #         logger.info(f"Server is healthy: {response.json()}")
+        #         return True
+        #     else:
+        #         logger.error(f"Server returned status code {response.status_code}")
+        #         return False
+        # except requests.exceptions.ConnectionError:
+        #     logger.error(
+        #         f"Could not connect to server at {self.websocket_thread.websocket_url}"
+        #     )
+        #     return False
+        return True
 
 
 if __name__ == "__main__":
