@@ -59,15 +59,6 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@app.get("/health")
-def health_check():
-    # check if db is healthy
-
-    # check if chess engine is healthy
-
-    return {"status": "healthy"}
-
-
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Chess API"}

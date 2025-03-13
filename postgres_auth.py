@@ -1,4 +1,5 @@
 import psycopg2
+import psycopg2.pool
 import hashlib
 import dotenv
 import os
@@ -19,25 +20,32 @@ class DBConnector:
 
             if env:
                 dotenv.load_dotenv()
-                # load vars
-                self.DB_NAME = os.getenv("DB_NAME")
-                self.DB_USER = os.getenv("DB_USER")
-                self.DB_HOST = os.getenv("DB_HOST")
-                self.DB_PASSWORD = os.getenv("DB_PASSWORD")
+                # Use Neon's connection URL
+                self.DATABASE_URL = os.getenv("DATABASE_URL")
+                if not self.DATABASE_URL:
+                    # Fallback to individual connection parameters if DATABASE_URL not set
+                    self.DB_NAME = os.getenv("DB_NAME")
+                    self.DB_USER = os.getenv("DB_USER")
+                    self.DB_HOST = os.getenv("DB_HOST")
+                    self.DB_PASSWORD = os.getenv("DB_PASSWORD")
+                    self.DATABASE_URL = f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}/{self.DB_NAME}"
             else:
-                self.DB_NAME = "userauth"
-                self.DB_USER = "postgres"
-                self.DB_HOST = "localhost"
-                self.DB_PASSWORD = ""
+                self.DATABASE_URL = "postgresql://postgres@localhost/userauth"
 
             # Update database context
             with configure_scope() as scope:
-                scope.set_tag("database.name", self.DB_NAME)
-                scope.set_tag("database.host", self.DB_HOST)
-                scope.set_tag("database.user", self.DB_USER)
+                scope.set_tag(
+                    "database.url", self.DATABASE_URL.split("@")[-1]
+                )  # Only log host/db, not credentials
 
-            # connect to the database
-            self._connect()
+            # Create connection pool
+            self.pool = psycopg2.pool.SimpleConnectionPool(1, 10, self.DATABASE_URL)
+            if not self.pool:
+                raise Exception("Failed to create connection pool")
+
+            # Get initial connection to verify everything works
+            self.conn = self.pool.getconn()
+            self.cursor = self.conn.cursor()
 
             # Set successful connection tag
             with configure_scope() as scope:
@@ -58,20 +66,11 @@ class DBConnector:
     def _connect(self):
         try:
             with sentry_sdk.start_span(
-                op="db.connect", description=f"Connect to database {self.DB_NAME}"
+                op="db.connect", description="Get connection from pool"
             ) as span:
-                span.set_tag("db.name", self.DB_NAME)
-                span.set_tag("db.host", self.DB_HOST)
-
-                self.conn = psycopg2.connect(
-                    dbname=self.DB_NAME,
-                    user=self.DB_USER,
-                    host=self.DB_HOST,
-                    password=self.DB_PASSWORD,
-                )
-
-                self.cursor = self.conn.cursor()
-                self.conn.commit()
+                if not self.conn or self.conn.closed:
+                    self.conn = self.pool.getconn()
+                    self.cursor = self.conn.cursor()
         except Exception as e:
             logger.error(f"Database connection error: {e}")
             sentry_sdk.capture_exception(e)
@@ -84,11 +83,21 @@ class DBConnector:
 
     def _disconnect(self):
         try:
-            if self.conn:
-                self.conn.close()
+            if self.conn and not self.conn.closed:
+                self.cursor.close()
+                self.pool.putconn(self.conn)
+                self.conn = None
+                self.cursor = None
         except Exception as e:
             logger.error(f"Error disconnecting from database: {e}")
             sentry_sdk.capture_exception(e)
+        finally:
+            try:
+                if self.pool:
+                    self.pool.closeall()
+            except Exception as e:
+                logger.error(f"Error closing connection pool: {e}")
+                sentry_sdk.capture_exception(e)
 
     """
     executes SQLite queries

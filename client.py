@@ -4,6 +4,7 @@ from PyQt5.QtCore import QObject, pyqtSignal, QThread
 from PyQt5.QtWidgets import QApplication
 from online.networked_chess_board import NetworkedChessBoard
 from online.network_gui import NetworkedChessBoardUI
+from login_window import LoginWindow
 import websockets
 import sys
 import json
@@ -22,15 +23,19 @@ class WebSocketThread(QThread):
     data_received = pyqtSignal(bytes)
     move_to_send = None
 
-    def __init__(self, websocket_url: str):
+    def __init__(self, websocket_url: str, username: str):
         super().__init__()
         self.websocket_url = websocket_url
+        self.username = username
         self.websocket = None
         self.running = True
 
     async def connect_and_receive(self):
         try:
-            async with websockets.connect(self.websocket_url) as websocket:
+            # Include username in connection headers
+            async with websockets.connect(
+                self.websocket_url, extra_headers={"Username": self.username}
+            ) as websocket:
                 self.websocket = websocket
                 while self.running:
                     # Check if there's a move to send
@@ -65,11 +70,12 @@ class WebSocketThread(QThread):
 
 
 class ChessClient(QObject):
-    def __init__(self, websocket_url: str):
+    def __init__(self, websocket_url: str, username: str):
         super().__init__()
+        self.username = username
         self.chess_board = NetworkedChessBoard(is_server=False)
         self.chess_board_ui = NetworkedChessBoardUI()
-        self.websocket_thread = WebSocketThread(websocket_url)
+        self.websocket_thread = WebSocketThread(websocket_url, username)
 
         # Connect the WebSocket thread signal to a handler
         self.websocket_thread.data_received.connect(self.handle_data)
@@ -101,7 +107,7 @@ class ChessClient(QObject):
             logger.error("Not connected to server")
             return False
 
-        message = {"type": message_type, **kwargs}
+        message = {"type": message_type, "username": self.username, **kwargs}
 
         try:
             await self.websocket_thread.websocket.send(json.dumps(message))
@@ -126,45 +132,40 @@ class ChessClient(QObject):
 
     def send_move(self, from_pos, to_pos):
         """Send a move to the server synchronously"""
-        message = {"type": "move", "move": {"from": from_pos, "to": to_pos}}
+        message = {
+            "type": "move",
+            "username": self.username,
+            "move": {"from": from_pos, "to": to_pos},
+        }
         self.websocket_thread.queue_move(message)
-
-    def check_server_health(self):
-        """Check if the server is healthy"""
-        # try:
-        #     response = requests.get(f"{self.websocket_thread.websocket_url}/health")
-        #     if response.status_code == 200:
-        #         logger.info(f"Server is healthy: {response.json()}")
-        #         return True
-        #     else:
-        #         logger.error(f"Server returned status code {response.status_code}")
-        #         return False
-        # except requests.exceptions.ConnectionError:
-        #     logger.error(
-        #         f"Could not connect to server at {self.websocket_thread.websocket_url}"
-        #     )
-        #     return False
-        return True
 
 
 if __name__ == "__main__":
-    import sys
-
     app = QApplication(sys.argv)
 
-    if len(sys.argv) != 2:
-        # use production socket
-        websocket_url = "wss://appori2n7.azurewebsites.net/ws"
-    else:
-        websocket_url = sys.argv[1]
+    # Create and show login window
+    login_window = LoginWindow()
 
-    websocket_url = "ws://localhost:8000/ws"
+    def start_chess_client(username):
+        # Get the websocket URL
+        if len(sys.argv) != 2:
+            # use production socket
+            server_url = "wss://appori2n7.azurewebsites.net/ws"
+        else:
+            server_url = sys.argv[1]
 
-    # Add client ID to the WebSocket URL
-    client_id = str(uuid.uuid4())
-    if not websocket_url.endswith("/"):
-        websocket_url += "/"
-    websocket_url += client_id
+        # Add client ID to the WebSocket URL
+        client_id = str(uuid.uuid4())
+        if not server_url.endswith("/"):
+            server_url += "/"
+        full_url = server_url + client_id
 
-    client = ChessClient(websocket_url)
+        # Create chess client with authenticated username
+        global client
+        client = ChessClient(full_url, username)
+
+    # Connect login success signal to start_chess_client
+    login_window.login_successful.connect(start_chess_client)
+    login_window.show()
+
     sys.exit(app.exec_())
