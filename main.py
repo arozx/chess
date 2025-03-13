@@ -7,14 +7,20 @@ import sys
 from logging_config import configure_logging
 from PyQt5.QtWidgets import QApplication
 from gui import ChessBoardUI
-from sentry_config import init_sentry
-import sentry_sdk
 
-# Initialize Sentry
-init_sentry()
-
-# Configure logging
+# Configure logging first
 logger = configure_logging()
+
+# Try to import and initialize Sentry, but don't fail if not available
+try:
+    from sentry_config import init_sentry
+
+    SENTRY_INITIALIZED = init_sentry()
+except ImportError:
+    logger.warning(
+        "Sentry configuration not available. Error tracking will be disabled."
+    )
+    SENTRY_INITIALIZED = False
 
 app = FastAPI()
 
@@ -81,7 +87,10 @@ async def startup_event():
         pass
     except Exception as e:
         logger.error(f"Startup error: {e}")
-        sentry_sdk.capture_exception(e)
+        if SENTRY_INITIALIZED:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(e)
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
@@ -104,7 +113,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         manager.disconnect(client_id)
     except Exception as e:
         logger.error(f"Error: {e}")
-        sentry_sdk.capture_exception(e)
+        if SENTRY_INITIALIZED:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(e)
         manager.disconnect(client_id)
 
 
@@ -118,7 +130,10 @@ def main():
         return app.exec_()
     except Exception as e:
         logger.critical(f"Unhandled exception: {e}")
-        sentry_sdk.capture_exception(e)
+        if SENTRY_INITIALIZED:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(e)
         raise
 
 if __name__ == "__main__":
@@ -126,6 +141,9 @@ if __name__ == "__main__":
         sys.exit(main())
     except Exception as e:
         logger.critical(f"Unhandled exception: {e}")
-        sentry_sdk.capture_exception(e)
+        if SENTRY_INITIALIZED:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(e)
         logger.exception("Application crashed")
         sys.exit(1)

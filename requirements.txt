@@ -16,4 +16,8 @@ uvicorn
 gunicorn
 websockets
 requests
+
+# Optional dependencies
+# Install these with: pip install -r requirements.txt[monitoring]
+[monitoring]
 sentry-sdk>=1.40.0

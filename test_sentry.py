@@ -2,9 +2,19 @@ import sys
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QTimer
 from gui import ChessBoardUI
-import sentry_sdk
+import logging
 import time
 
+logger = logging.getLogger(__name__)
+
+# Try to import sentry_sdk, but don't fail if not available
+try:
+    import sentry_sdk
+
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+    logger.warning("Sentry SDK not available. Tests will run without error tracking.")
 
 def run_test_sequence(window):
     """Run a sequence of test actions"""
@@ -26,9 +36,12 @@ def run_test_sequence(window):
 
         # Test 4: Simulate a slow operation
         print("Testing performance monitoring...")
-        with sentry_sdk.start_span(
-            op="test.slow_operation", description="Slow operation test"
-        ):
+        if SENTRY_AVAILABLE:
+            with sentry_sdk.start_span(
+                op="test.slow_operation", description="Slow operation test"
+            ):
+                time.sleep(2)
+        else:
             time.sleep(2)
 
         # Test 5: Generate an error
@@ -36,7 +49,8 @@ def run_test_sequence(window):
         raise ValueError("Test error for Sentry")
 
     except Exception as e:
-        sentry_sdk.capture_exception(e)
+        if SENTRY_AVAILABLE:
+            sentry_sdk.capture_exception(e)
         print(f"Test sequence completed with expected error: {e}")
 
     finally:

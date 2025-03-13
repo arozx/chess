@@ -1,6 +1,6 @@
 import pickle
 import asyncio
-import sentry_sdk
+from logging import getLogger
 
 from PyQt5.QtWidgets import (
     QLabel,
@@ -16,9 +16,16 @@ from PyQt5.QtGui import QPixmap
 from gui import ChessBoardUI
 from online.networked_chess_board import NetworkedChessBoard
 
-from logging import getLogger
-
 logger = getLogger(__name__)
+
+# Try to import sentry_sdk, but don't fail if it's not available
+try:
+    import sentry_sdk
+
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+    logger.warning("Sentry SDK not available. Error tracking will be disabled.")
 
 
 class ChessPiece(QLabel):
@@ -89,85 +96,94 @@ class NetworkedChessBoardUI(ChessBoardUI):
 
     def init_main_ui(self):
         try:
-            with sentry_sdk.start_span(
-                op="gui.init_main", description="Initialize main UI"
-            ):
-                self.main_widget = QWidget(self)
-                self.setCentralWidget(self.main_widget)
-
-                # Main layout
-                main_layout = QHBoxLayout(self.main_widget)
-                main_layout.setSpacing(20)
-                main_layout.setContentsMargins(20, 20, 20, 20)
-
-                # Left side - Chess board and status
-                left_panel = QVBoxLayout()
-                left_panel.setSpacing(0)
-                left_panel.addWidget(self.status_label)
-
-                # Load theme config from file
-                self.theme = self.parse_ini("theme.ini")
-
-                # Extract light and dark squares
-                light_squares = self.theme["light_squares"]["colour"]
-                dark_squares = self.theme["dark_squares"]["colour"]
-
-                # Chessboard grid with no spacing
-                self.grid_layout = QGridLayout()
-                self.grid_layout.setSpacing(0)
-                self.grid_layout.setHorizontalSpacing(0)
-                self.grid_layout.setVerticalSpacing(0)
-                self.init_chessboard(light_squares, dark_squares)
-                left_panel.addLayout(self.grid_layout)
-
-                # Right side - Move info
-                right_panel = QVBoxLayout()
-                right_panel.setSpacing(5)
-                right_panel.setContentsMargins(10, 0, 0, 0)
-
-                # Add move count and export at the top
-                info_layout = QVBoxLayout()
-                info_layout.setSpacing(10)
-                info_layout.addWidget(self.move_count_label)
-                info_layout.addWidget(self.export_button)
-                right_panel.addLayout(info_layout)
-
-                # Add move history with a title
-                history_container = QVBoxLayout()
-                history_container.setSpacing(5)
-                history_container.addWidget(self.move_history_label)
-
-                # Add move history labels with initial styling
-                for label in self.move_history:
-                    label.setStyleSheet("""
-                        font-family: 'Courier New', monospace;
-                        font-size: 12px;
-                        color: #333;
-                        margin: 3px 0;
-                        padding: 2px 5px;
-                        background-color: #f8f8f8;
-                        border-radius: 2px;
-                    """)
-                    label.setMinimumWidth(250)  # Ensure label is wide enough
-                    history_container.addWidget(label)
-
-                right_panel.addLayout(history_container)
-                right_panel.addStretch()
-
-                # Add panels to main layout
-                main_layout.addLayout(left_panel, stretch=4)
-                main_layout.addLayout(right_panel, stretch=1)
-
-                # Set fixed window size
-                self.setFixedSize(800, 650)
-                self.setWindowTitle("Chess")
-                self.setStyleSheet("background-color: white;")
-                self.show()
+            # Only use sentry span if available
+            if SENTRY_AVAILABLE:
+                with sentry_sdk.start_span(
+                    op="gui.init_main", description="Initialize main UI"
+                ):
+                    self._init_main_ui_impl()
+            else:
+                self._init_main_ui_impl()
 
         except Exception as e:
             logger.error(f"Error initializing main UI: {e}")
-            sentry_sdk.capture_exception(e)
+            if SENTRY_AVAILABLE:
+                sentry_sdk.capture_exception(e)
             raise
+
+    def _init_main_ui_impl(self):
+        """Implementation of main UI initialization"""
+        self.main_widget = QWidget(self)
+        self.setCentralWidget(self.main_widget)
+
+        # Main layout
+        main_layout = QHBoxLayout(self.main_widget)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+
+        # Left side - Chess board and status
+        left_panel = QVBoxLayout()
+        left_panel.setSpacing(0)
+        left_panel.addWidget(self.status_label)
+
+        # Load theme config from file
+        self.theme = self.parse_ini("theme.ini")
+
+        # Extract light and dark squares
+        light_squares = self.theme["light_squares"]["colour"]
+        dark_squares = self.theme["dark_squares"]["colour"]
+
+        # Chessboard grid with no spacing
+        self.grid_layout = QGridLayout()
+        self.grid_layout.setSpacing(0)
+        self.grid_layout.setHorizontalSpacing(0)
+        self.grid_layout.setVerticalSpacing(0)
+        self.init_chessboard(light_squares, dark_squares)
+        left_panel.addLayout(self.grid_layout)
+
+        # Right side - Move info
+        right_panel = QVBoxLayout()
+        right_panel.setSpacing(5)
+        right_panel.setContentsMargins(10, 0, 0, 0)
+
+        # Add move count and export at the top
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(10)
+        info_layout.addWidget(self.move_count_label)
+        info_layout.addWidget(self.export_button)
+        right_panel.addLayout(info_layout)
+
+        # Add move history with a title
+        history_container = QVBoxLayout()
+        history_container.setSpacing(5)
+        history_container.addWidget(self.move_history_label)
+
+        # Add move history labels with initial styling
+        for label in self.move_history:
+            label.setStyleSheet("""
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                color: #333;
+                margin: 3px 0;
+                padding: 2px 5px;
+                background-color: #f8f8f8;
+                border-radius: 2px;
+            """)
+            label.setMinimumWidth(250)  # Ensure label is wide enough
+            history_container.addWidget(label)
+
+        right_panel.addLayout(history_container)
+        right_panel.addStretch()
+
+        # Add panels to main layout
+        main_layout.addLayout(left_panel, stretch=4)
+        main_layout.addLayout(right_panel, stretch=1)
+
+        # Set fixed window size
+        self.setFixedSize(800, 650)
+        self.setWindowTitle("Chess")
+        self.setStyleSheet("background-color: white;")
+        self.show()
 
     def handle_click(self, row, col):
         """Handle clicks on the chess board and send moves to the server"""
