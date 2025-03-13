@@ -39,6 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install sentry_sdk
 
   # Linting job
   lint:
@@ -151,7 +152,6 @@ jobs:
       - name: Install SonarQube scanner and dependencies
         run: |
           pip install requests
-          pip install sentry_sdk # Install missing dependency
 
       # Run SonarQube analysis
       - name: SonarQube Scan
