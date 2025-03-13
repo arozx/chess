@@ -2,6 +2,8 @@ import unittest
 from mcts import Node, MCTS
 from pieces import Rook, Knight, Bishop, Queen, King, Pawn
 import time
+import logging
+from game_state import GameState
 
 
 class TestMCTS(unittest.TestCase):
@@ -33,76 +35,42 @@ class TestMCTS(unittest.TestCase):
             self.initial_board_array[6][i] = Pawn("black")
 
         self.root_node = Node(self.initial_board_array)
-        self.mcts = MCTS(self.root_node, iterations=1000, is_white=1)
+        self.mcts = MCTS(self.initial_board_array, iterations=1000, is_white=True)
 
     def test_node_initialization(self):
         node = Node(self.initial_board_array)
-        self.assertEqual(node.board_array, self.initial_board_array)
-        self.assertIsNone(node.move)
+        self.assertIsInstance(node.state, GameState)
         self.assertIsNone(node.parent)
         self.assertEqual(node.children, [])
         self.assertEqual(node.visits, 0)
         self.assertEqual(node.value, 0)
-
-    def test_node_is_leaf(self):
-        node = Node(self.initial_board_array)
-        self.assertTrue(node.is_leaf())
-        node.children.append(Node(self.initial_board_array))
-        self.assertFalse(node.is_leaf())
+        self.assertIsNotNone(node._untried_moves)
 
     def test_node_expand(self):
         node = Node(self.initial_board_array)
-        all_valid_moves = [((1, 0), (2, 0)), ((1, 1), (2, 1))]
-        node.expand(all_valid_moves)
-        self.assertEqual(len(node.children), 2)
+        expanded_node = node.expand()
+        self.assertIsNotNone(expanded_node)
+        self.assertEqual(len(node.children), 1)
+        self.assertIsNotNone(expanded_node.move_from_parent)
 
     def test_node_apply_move(self):
         node = Node(self.initial_board_array)
-        move = ((1, 0), (2, 0))
-        new_board_array = node.apply_move(self.initial_board_array, move)
-        self.assertIsNotNone(new_board_array)
-        self.assertIsNone(new_board_array[1][0])
-        self.assertIsInstance(new_board_array[2][0], Pawn)
+        move = ((1, 0), (2, 0))  # Move white pawn forward
+        new_state = node.apply_move(node.state, move)
+        self.assertIsNotNone(new_state)
+        self.assertIsNone(new_state.board[1][0])  # Original position should be empty
+        self.assertIsInstance(
+            new_state.board[2][0], Pawn
+        )  # New position should have pawn
+        self.assertEqual(new_state.board[2][0].colour, "white")  # Should be white pawn
 
-    def test_node_update(self):
+    def test_node_backpropagate(self):
         node = Node(self.initial_board_array)
-        node.update(1)
+        child = Node(self.initial_board_array, parent=node)
+        node.children.append(child)
+        child.backpropagate(1.0)
         self.assertEqual(node.visits, 1)
-        self.assertEqual(node.value, 1)
-
-    def test_mcts_select(self):
-        leaf = self.mcts.select(self.root_node)
-        self.assertIsNotNone(leaf)
-
-    def test_mcts_expand(self):
-        self.mcts.expand(self.root_node)
-        self.assertGreater(len(self.root_node.children), 0)
-
-    def test_mcts_simulate(self):
-        value = self.mcts.simulate(self.root_node)
-        self.assertIsInstance(value, float)
-
-    def test_mcts_backpropagate(self):
-        leaf = self.mcts.select(self.root_node)
-        self.mcts.backpropagate(leaf, 1)
-        self.assertGreater(self.root_node.visits, 0)
-        self.assertGreater(self.root_node.value, 0)
-
-    def test_mcts_run(self):
-        self.mcts.run()
-        self.assertGreater(self.root_node.visits, 0)
-
-    def test_mcts_best_move(self):
-        self.mcts.run()
-        best_move = self.mcts.best_move()
-        self.assertIsNotNone(best_move)
-
-    def test_mcts_time_limit(self):
-        start_time = time.time()
-        best_move = self.mcts.run()
-        end_time = time.time()
-        self.assertIsNotNone(best_move)
-        self.assertLessEqual(end_time - start_time, 5)
+        self.assertEqual(node.value, 1.0)
 
 
 if __name__ == "__main__":

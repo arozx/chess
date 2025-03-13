@@ -102,20 +102,25 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             logger.info(f"Received message: {message}")
 
             # Process the received message based on its type
-            if message["type"] == "move":
+            if message["type"] == "test":
+                # Send test response immediately
+                await manager.send_message(
+                    client_id,
+                    json.dumps({"type": "test_response", "message": "Test received"}),
+                )
+            elif message["type"] == "move":
                 # Process move
-                # This is where you would integrate with your chess engine
                 await manager.send_message(
                     client_id,
                     json.dumps({"type": "move_confirmed", "move": message["move"]}),
                 )
     except WebSocketDisconnect:
         manager.disconnect(client_id)
+        logger.info(f"Client {client_id} disconnected")
     except Exception as e:
         logger.error(f"Error: {e}")
         if SENTRY_INITIALIZED:
             import sentry_sdk
-
             sentry_sdk.capture_exception(e)
         manager.disconnect(client_id)
 
