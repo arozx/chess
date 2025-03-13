@@ -104,7 +104,7 @@ class DBConnector:
     returns cursor
     """
 
-    def __execute_query(self, query):
+    def __execute_query(self, query, params=None):
         try:
             with sentry_sdk.start_span(op="db.query", description=query[:50]) as span:
                 # Add query metadata
@@ -114,7 +114,10 @@ class DBConnector:
                 # Add timing information
                 start_time = time.time()
                 cursor = self.conn.cursor()
-                cursor.execute(query)
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
                 self.conn.commit()
                 duration = time.time() - start_time
 
@@ -173,8 +176,8 @@ class DBConnector:
             ) as span:
                 salt = os.urandom(16).hex()
                 password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
-                query = f"INSERT INTO users (username, password_hash, salt) VALUES ('{username}', '{password_hash}', '{salt}')"
-                self.__execute_query(query)
+                query = "INSERT INTO users (username, password_hash, salt) VALUES (%s, %s, %s)"
+                self.__execute_query(query, (username, password_hash, salt))
         except Exception as e:
             logger.error(f"Error inserting user {username}: {e}")
             sentry_sdk.capture_exception(e)
@@ -190,8 +193,8 @@ class DBConnector:
             with sentry_sdk.start_span(
                 op="db.verify_user", description=f"Verify user {username}"
             ) as span:
-                query = f"SELECT password_hash, salt FROM users WHERE username = '{username}'"
-                cursor = self.__execute_query(query)
+                query = "SELECT password_hash, salt FROM users WHERE username = %s"
+                cursor = self.__execute_query(query, (username,))
                 result = cursor.fetchone()
                 if result:
                     stored_hash, salt = result
@@ -237,8 +240,8 @@ class DBConnector:
             with sentry_sdk.start_span(
                 op="db.insert_login", description=f"Insert login for {username}"
             ) as span:
-                query = f"INSERT INTO logins (username, time) VALUES('{username}', '{time:.2f}')"
-                self.__execute_query(query)
+                query = "INSERT INTO logins (username, time) VALUES(%s, %s)"
+                self.__execute_query(query, (username, f"{time:.2f}"))
         except Exception as e:
             logger.error(f"Error inserting login attempt for {username}: {e}")
             sentry_sdk.capture_exception(e)
@@ -255,10 +258,8 @@ class DBConnector:
             with sentry_sdk.start_span(
                 op="db.get_logins", description=f"Get logins for {username}"
             ) as span:
-                query = (
-                    f"SELECT username, time FROM logins WHERE username = '{username}'"
-                )
-                cursor = self.__execute_query(query)
+                query = "SELECT username, time FROM logins WHERE username = %s"
+                cursor = self.__execute_query(query, (username,))
                 if cursor is not None:
                     return cursor.fetchall()
         except Exception as e:
@@ -266,52 +267,92 @@ class DBConnector:
             sentry_sdk.capture_exception(e)
             return None
 
-    def test_sentry_functionality(self):
-        """
-        Test function to verify Sentry error reporting
-        """
+    """
+    Creates a table to store games
+    Store game positions as FEN
+    returns N/A
+    """
+
+    def create_games_table(self):
         try:
-            # Test 1: Division by zero error
-            logger.info("Testing Sentry with division by zero error")
-            result = 1 / 0
-
+            with sentry_sdk.start_span(
+                op="db.create_games_table", description="Create games table"
+            ) as span:
+                c = self.conn.cursor()
+                c.execute("""
+                    CREATE TABLE IF NOT EXISTS games (
+                        id SERIAL PRIMARY KEY,
+                        player1 TEXT,
+                        player2 TEXT,
+                        fen TEXT
+                    )
+                """)
+                self.conn.commit()
         except Exception as e:
-            logger.error(f"Caught test exception: {e}")
+            logger.error(f"Error creating games table: {e}")
             sentry_sdk.capture_exception(e)
+            raise
 
+    """
+    Adds game to the games table
+    returns N/A
+    """
+
+    def insert_game(self, player1, player2, fen):
         try:
-            # Test 2: Database connection error
-            logger.info("Testing Sentry with invalid database connection")
-            bad_connector = DBConnector()
-            bad_connector.DB_HOST = "nonexistent-host"
-            bad_connector._connect()
-
+            with sentry_sdk.start_span(
+                op="db.insert_game",
+                description=f"Insert game for players {player1} vs {player2}",
+            ) as span:
+                query = "INSERT INTO games (player1, player2, fen) VALUES (%s, %s, %s)"
+                self.__execute_query(query, (player1, player2, fen))
         except Exception as e:
-            logger.error(f"Caught database test exception: {e}")
+            logger.error(f"Error inserting game: {e}")
             sentry_sdk.capture_exception(e)
+            raise
 
-        # Test 3: Custom message
-        logger.info("Testing Sentry with custom message")
-        sentry_sdk.capture_message("Test message from chess application")
+    def init_game_state(self, game_id, initial_state):
+        try:
+            with sentry_sdk.start_span(
+                op="db.init_game", description=f"Initialize game {game_id}"
+            ) as span:
+                query = "INSERT INTO games (game_id, initial_state) VALUES (%s, %s)"
+                self.__execute_query(query, (game_id, initial_state))
+        except Exception as e:
+            logger.error(f"Error initializing game state for game {game_id}: {e}")
+            sentry_sdk.capture_exception(e)
+            raise
 
-        # Test 4: Performance monitoring
-        with sentry_sdk.start_span(
-            op="test.performance", description="Test performance monitoring"
-        ):
-            logger.info("Testing performance monitoring")
-            time.sleep(1)  # Simulate some work
+    def update_game_state(self, game_id, final_state):
+        try:
+            with sentry_sdk.start_span(
+                op="db.update_game", description=f"Update game {game_id}"
+            ) as span:
+                query = "UPDATE games SET final_state = %s WHERE game_id = %s"
+                self.__execute_query(query, (final_state, game_id))
+        except Exception as e:
+            logger.error(f"Error updating game state for game {game_id}: {e}")
+            sentry_sdk.capture_exception(e)
+            raise
+
+    def get_game_state(self, game_id):
+        try:
+            with sentry_sdk.start_span(
+                op="db.get_game", description=f"Get game {game_id}"
+            ) as span:
+                query = (
+                    "SELECT initial_state, final_state FROM games WHERE game_id = %s"
+                )
+                cursor = self.__execute_query(query, (game_id,))
+                if cursor is not None:
+                    return cursor.fetchone()
+        except Exception as e:
+            logger.error(f"Error getting game state for game {game_id}: {e}")
+            sentry_sdk.capture_exception(e)
+            return None
 
 
 if __name__ == "__main__":
     db = DBConnector()
     db.create_users_table()
     db.create_logins_table()
-
-    # Run Sentry tests
-    db.test_sentry_functionality()
-
-    # create a user
-    paswd = "jack2"
-    user = "jack2"
-    db.insert_user(user, paswd)
-    logger.info(db.verify_user(user, paswd))

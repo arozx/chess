@@ -47,7 +47,7 @@
 A full stack chess app using PyQt5 for the front end and an engine using Monte-Carlo Algorithms. This project is designed to meet the AQA Computer Science A Level specification.
 
 - `chess_board_1.py`: Contains the `ChessBoard` class which initializes the chessboard and sets up the pieces.
-- `db_connector.py`: Handles database connections.
+- `postgres_auth.py`: Handles database connections and user authentication.
 - `postgresql_auth.py`: Handle user login connections.
 - `eval_board.py`: Evaluates the board state.
 - `gui.py`: Manages the graphical user interface.

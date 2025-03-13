@@ -30,7 +30,6 @@ from PyQt5.QtGui import QPixmap
 # From the application
 from chess_board_1 import ChessBoard
 from postgres_auth import DBConnector
-from db_connector import SQLiteDBConnector
 from mcts import MCTS
 
 # Initialize Sentry first
@@ -89,10 +88,7 @@ class ChessBoardUI(QMainWindow):
             self.db_connector = DBConnector()
             self.db_connector.create_users_table()
             self.db_connector.create_logins_table()
-
-            # Open SQLite database
-            self.sqlite_connector = SQLiteDBConnector("chess_game.db")
-            self.sqlite_connector.create_games_table()
+            self.db_connector.create_games_table()  # Create games table
             self.current_game_id = None
             self.player1 = "White"
             self.player2 = "Black"
@@ -115,6 +111,9 @@ class ChessBoardUI(QMainWindow):
                 self.selected_pos = None
                 self.move_history = []
 
+                # Initialize game in database
+                self.current_game_id = self.start_new_game()
+
                 # Track game state in Sentry
                 with configure_scope() as scope:
                     scope.set_tag("game_state", "new_game")
@@ -128,6 +127,44 @@ class ChessBoardUI(QMainWindow):
                     )
         except Exception as e:
             logger.error(f"Error initializing game state: {e}")
+            sentry_sdk.capture_exception(e)
+            raise
+
+    def start_new_game(self):
+        """
+        Initialize a new game in the database
+        """
+        try:
+            with sentry_sdk.start_span(
+                op="db.start_game", description="Start new game"
+            ) as span:
+                # Save initial board state
+                self.db_connector.insert_game(
+                    self.player1,
+                    self.player2,
+                    self.chess_board.board_array_to_fen(),  # Use board_array_to_fen instead of get_fen
+                )
+        except Exception as e:
+            logger.error(f"Error starting new game: {e}")
+            sentry_sdk.capture_exception(e)
+            raise
+
+    def end_game(self):
+        """
+        Save the final game state to the database
+        """
+        try:
+            with sentry_sdk.start_span(
+                op="db.end_game", description="End game"
+            ) as span:
+                # Save final board state
+                self.db_connector.insert_game(
+                    self.player1,
+                    self.player2,
+                    self.chess_board.board_array_to_fen(),  # Use board_array_to_fen instead of get_fen
+                )
+        except Exception as e:
+            logger.error(f"Error ending game: {e}")
             sentry_sdk.capture_exception(e)
             raise
 
@@ -429,6 +466,10 @@ class ChessBoardUI(QMainWindow):
             # Update the clock
             self.update_clock()
 
+        # Check if game has ended after the move
+        if self.chess_board.is_game_over():
+            self.end_game()
+
     @track_slow_operations(threshold_seconds=0.1)
     def update_board_display(self):
         # ... existing code ...
@@ -467,7 +508,7 @@ class ChessBoardUI(QMainWindow):
         """
         Save the move history
         """
-        self.sqlite_connector.insert_game(
+        self.db_connector.insert_game(
             self.player1, self.player2, self.move_history_labels[0].text()
         )
 
@@ -543,6 +584,23 @@ class ChessBoardUI(QMainWindow):
         except Exception as e:
             logger.error(f"Error in AI move: {e}")
             sentry_sdk.capture_exception(e)
+
+    def closeEvent(self, event):
+        """Handle window close event"""
+        try:
+            # Save game state if it's still in progress
+            if not self.chess_board.is_game_over():
+                self.end_game()
+
+            # Disconnect from database
+            if hasattr(self, "db_connector"):
+                self.db_connector._disconnect()
+
+            event.accept()
+        except Exception as e:
+            logger.error(f"Error during window close: {e}")
+            sentry_sdk.capture_exception(e)
+            event.accept()
 
 
 # Initialize logging when the module is imported

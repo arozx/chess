@@ -3,14 +3,13 @@ import concurrent.futures
 import cProfile
 import os
 import pstats
-import sqlite3
 from multiprocessing import cpu_count
 
 import chess.pgn
 import pandas as pd
 from alive_progress import alive_bar
 
-from db_connector import DBConnector
+from postgres_auth import DBConnector
 from split_file import split_file
 
 from logging import getLogger
@@ -29,23 +28,11 @@ parser.add_argument(
 
 database = parser.parse_args().database
 
-if os.name == "nt":  # check if windows
-    database = os.getcwd() + f"\\{database}.db"
-else:  # UNIX style path (osx, linux, etc)
-    database = os.getcwd() + f"/{database}.db"
-
-# connect to the SQLite database (or create it if it doesn't exist)
-conn = sqlite3.connect(database)
-logger.info(f"opening database at: {database}")
-
-
 # create a new DBConnector instance
-db = DBConnector(database)
+db = DBConnector(env=False)
 
 # create the tables
 db.create_games_table()
-db.create_moves_table()
-
 
 def count_games_in_pgn(file_path):
     with open(file_path) as pgn:
@@ -141,11 +128,11 @@ def process_file(file):
                     df.drop(
                         columns=["file_id"]
                     )  # drop the file_id column before inserting into the database
-                    df.to_sql("games", conn, if_exists="append", index=False)
+                    df.to_sql("games", db.conn, if_exists="append", index=False)
                     games_list = []  # clear the list
                 bar()  # update bar status
     logger.info(f"finished processing file: {file}")
-    conn.commit()
+    db.conn.commit()
 
 
 def process_files():
@@ -188,4 +175,4 @@ if __name__ == "__main__":
     stats.dump_stats("profiling_results.pstats")
 
     # close db connection
-    conn.close()
+    db.conn.close()
