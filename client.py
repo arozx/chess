@@ -9,6 +9,7 @@ import sys
 import json
 import requests
 import logging
+import uuid
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class WebSocketThread(QThread):
     data_received = pyqtSignal(bytes)
+    move_to_send = None
 
     def __init__(self, websocket_url: str):
         super().__init__()
@@ -32,6 +34,12 @@ class WebSocketThread(QThread):
             async with websockets.connect(self.websocket_url) as websocket:
                 self.websocket = websocket
                 while self.running:
+                    # Check if there's a move to send
+                    if self.move_to_send:
+                        await websocket.send(json.dumps(self.move_to_send))
+                        self.move_to_send = None
+
+                    # Receive data
                     data = await websocket.recv()
                     self.data_received.emit(data)
         except websockets.exceptions.ConnectionClosed as e:
@@ -52,6 +60,10 @@ class WebSocketThread(QThread):
             )
         self.quit()
 
+    def queue_move(self, move_data):
+        """Queue a move to be sent in the websocket thread"""
+        self.move_to_send = move_data
+
 
 class ChessClient(QObject):
     def __init__(self, websocket_url: str):
@@ -62,6 +74,9 @@ class ChessClient(QObject):
 
         # Connect the WebSocket thread signal to a handler
         self.websocket_thread.data_received.connect(self.handle_data)
+
+        # Set the client reference in the UI
+        self.chess_board_ui.set_client(self)
 
         # Start the WebSocket thread
         self.websocket_thread.start()
@@ -110,9 +125,10 @@ class ChessClient(QObject):
             logger.error(f"Error receiving message: {e}")
             return None
 
-    async def send_move(self, from_pos, to_pos):
-        """Send a move to the server"""
-        return await self.send_message("move", move={"from": from_pos, "to": to_pos})
+    def send_move(self, from_pos, to_pos):
+        """Send a move to the server synchronously"""
+        message = {"type": "move", "move": {"from": from_pos, "to": to_pos}}
+        self.websocket_thread.queue_move(message)
 
     def check_server_health(self):
         """Check if the server is healthy"""
@@ -138,12 +154,17 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 2:
         # use production socket
-        websocket_url = "wss://https://appori2n7.azurewebsites.net/ws"
-
+        websocket_url = "wss://appori2n7.azurewebsites.net/ws"
     else:
         websocket_url = sys.argv[1]
 
-    # websocket_url = "ws://localhost:8000/ws"
+    websocket_url = "ws://localhost:8000/ws"
+
+    # Add client ID to the WebSocket URL
+    client_id = str(uuid.uuid4())
+    if not websocket_url.endswith("/"):
+        websocket_url += "/"
+    websocket_url += client_id
 
     client = ChessClient(websocket_url)
     sys.exit(app.exec_())

@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 
 class Node:
     def __init__(self, state, move=None, parent=None):
-        self.state = state if isinstance(state, GameState) else GameState(state)
+        self.state = state
         self.move = move
         self.parent = parent
         self.children = []
@@ -38,30 +38,22 @@ class Node:
     @track_performance(op="mcts", name="expand_node")
     def expand(self, all_valid_moves):
         for move in all_valid_moves:
-            new_board_array = self.apply_move(self.state.board, move)
-            if new_board_array:
-                child = Node(new_board_array, move, self)
+            new_state = self.apply_move(self.state, move)
+            if new_state:
+                child = Node(new_state, move, self)
                 self.children.append(child)
 
     @track_performance(op="mcts", name="apply_move")
-    def apply_move(self, board_array, move):
-        new_board_array = copy.deepcopy(board_array)
+    def apply_move(self, board, move):
+        """Apply a move to a board state and return new board"""
+        new_board = board.clone()
         from_square, to_square = move
 
-        try:
-            piece = new_board_array[from_square[0]][from_square[1]]
-            if piece is None or from_square == to_square:
-                return None
-
-            new_board_array[to_square[0]][to_square[1]] = piece
-            new_board_array[from_square[0]][from_square[1]] = None
-
-            return GameState(
-                new_board_array,
-                "black" if self.state.player_turn == "white" else "white",
-            )
-        except (IndexError, AttributeError):
-            return None
+        if new_board.move_piece(
+            from_square[0], from_square[1], to_square[0], to_square[1]
+        ):
+            return new_board
+        return None
 
     def update(self, value):
         self.visits += 1
@@ -103,7 +95,7 @@ class MCTS:
 
     @track_performance(op="mcts", name="select_node")
     def select(self, node):
-        while not node.is_leaf() and not self.game.is_terminal(node):
+        while not node.is_leaf() and not self.game.is_terminal(node.state):
             if not node.children:
                 break
             node = self.get_best_uct(node)
@@ -111,8 +103,8 @@ class MCTS:
 
     @track_performance(op="mcts", name="expand")
     def expand(self, node):
-        if not self.game.is_terminal(node):
-            valid_moves = self.game.get_legal_moves(node)
+        if not self.game.is_terminal(node.state):
+            valid_moves = self.game.get_legal_moves(node.state)
             node.expand(valid_moves)
 
     @track_performance(op="mcts", name="simulate")
@@ -126,9 +118,10 @@ class MCTS:
             if not valid_moves:
                 break
             move = random.choice(valid_moves)
-            state = self.game.apply_move(state, move)
-            if state is None:
+            new_state = self.game.apply_move(state, move)
+            if new_state is None:
                 break
+            state = new_state
             depth += 1
 
         return self.game.get_reward(state, self.is_white)

@@ -24,20 +24,76 @@ def eval_board(board, player_colour, score_normalised=False):
             "King": 20000,
         }
 
-        # Position bonuses for each piece type (simplified)
+        # Position bonuses for each piece type
         pawn_bonus = [
             [0, 0, 0, 0, 0, 0, 0, 0],
-            [50, 50, 50, 50, 50, 50, 50, 50],
-            [10, 10, 20, 30, 30, 20, 10, 10],
-            [5, 5, 10, 25, 25, 10, 5, 5],
-            [0, 0, 0, 20, 20, 0, 0, 0],
-            [5, -5, -10, 0, 0, -10, -5, 5],
             [5, 10, 10, -20, -20, 10, 10, 5],
+            [5, -5, -10, 0, 0, -10, -5, 5],
+            [0, 0, 0, 20, 20, 0, 0, 0],
+            [5, 5, 10, 25, 25, 10, 5, 5],
+            [10, 10, 20, 30, 30, 20, 10, 10],
+            [50, 50, 50, 50, 50, 50, 50, 50],
             [0, 0, 0, 0, 0, 0, 0, 0],
         ]
 
-        # Similar bonus tables for other pieces would go here
-        # (For brevity, we're only implementing pawn bonuses)
+        knight_bonus = [
+            [-50, -40, -30, -30, -30, -30, -40, -50],
+            [-40, -20, 0, 0, 0, 0, -20, -40],
+            [-30, 0, 10, 15, 15, 10, 0, -30],
+            [-30, 5, 15, 20, 20, 15, 5, -30],
+            [-30, 0, 15, 20, 20, 15, 0, -30],
+            [-30, 5, 10, 15, 15, 10, 5, -30],
+            [-40, -20, 0, 5, 5, 0, -20, -40],
+            [-50, -40, -30, -30, -30, -30, -40, -50],
+        ]
+
+        bishop_bonus = [
+            [-20, -10, -10, -10, -10, -10, -10, -20],
+            [-10, 0, 0, 0, 0, 0, 0, -10],
+            [-10, 0, 5, 10, 10, 5, 0, -10],
+            [-10, 5, 5, 10, 10, 5, 5, -10],
+            [-10, 0, 10, 10, 10, 10, 0, -10],
+            [-10, 10, 10, 10, 10, 10, 10, -10],
+            [-10, 5, 0, 0, 0, 0, 5, -10],
+            [-20, -10, -10, -10, -10, -10, -10, -20],
+        ]
+
+        rook_bonus = [
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [5, 10, 10, 10, 10, 10, 10, 5],
+            [-5, 0, 0, 0, 0, 0, 0, -5],
+            [-5, 0, 0, 0, 0, 0, 0, -5],
+            [-5, 0, 0, 0, 0, 0, 0, -5],
+            [-5, 0, 0, 0, 0, 0, 0, -5],
+            [-5, 0, 0, 0, 0, 0, 0, -5],
+            [0, 0, 0, 5, 5, 0, 0, 0],
+        ]
+
+        queen_bonus = [
+            [-20, -10, -10, -5, -5, -10, -10, -20],
+            [-10, 0, 0, 0, 0, 0, 0, -10],
+            [-10, 0, 5, 5, 5, 5, 0, -10],
+            [-5, 0, 5, 5, 5, 5, 0, -5],
+            [0, 0, 5, 5, 5, 5, 0, -5],
+            [-10, 5, 5, 5, 5, 5, 0, -10],
+            [-10, 0, 5, 0, 0, 0, 0, -10],
+            [-20, -10, -10, -5, -5, -10, -10, -20],
+        ]
+
+        king_bonus = [
+            [-30, -40, -40, -50, -50, -40, -40, -30],
+            [-30, -40, -40, -50, -50, -40, -40, -30],
+            [-30, -40, -40, -50, -50, -40, -40, -30],
+            [-30, -40, -40, -50, -50, -40, -40, -30],
+            [-20, -30, -30, -40, -40, -30, -30, -20],
+            [-10, -20, -20, -20, -20, -20, -20, -10],
+            [20, 20, 0, 0, 0, 0, 20, 20],
+            [20, 30, 10, 0, 0, 10, 30, 20],
+        ]
+
+        # Development bonus for minor pieces
+        development_bonus = 10  # Points for developing minor pieces
+        center_control_bonus = 15  # Points for controlling center squares
 
         white_score = 0
         black_score = 0
@@ -49,15 +105,35 @@ def eval_board(board, player_colour, score_normalised=False):
                 if piece:
                     piece_type = piece.__class__.__name__
                     base_value = piece_values.get(piece_type, 0)
+                    position_bonus = 0
 
                     # Position bonus based on piece type
-                    position_bonus = 0
                     if piece_type == "Pawn":
-                        # Use the appropriate row based on color (flip for black)
-                        if piece.colour == "white":
-                            position_bonus = pawn_bonus[i][j]
-                        else:
-                            position_bonus = pawn_bonus[7 - i][j]
+                        position_bonus = pawn_bonus[i][j]
+                    elif piece_type == "Knight":
+                        position_bonus = knight_bonus[i][j]
+                        # Development bonus for knights
+                        if piece.colour == "white" and i > 0:
+                            position_bonus += development_bonus
+                        elif piece.colour == "black" and i < 7:
+                            position_bonus += development_bonus
+                    elif piece_type == "Bishop":
+                        position_bonus = bishop_bonus[i][j]
+                        # Development bonus for bishops
+                        if piece.colour == "white" and i > 0:
+                            position_bonus += development_bonus
+                        elif piece.colour == "black" and i < 7:
+                            position_bonus += development_bonus
+                    elif piece_type == "Rook":
+                        position_bonus = rook_bonus[i][j]
+                    elif piece_type == "Queen":
+                        position_bonus = queen_bonus[i][j]
+                    elif piece_type == "King":
+                        position_bonus = king_bonus[i][j]
+
+                    # Center control bonus
+                    if 2 <= i <= 5 and 2 <= j <= 5:
+                        position_bonus += center_control_bonus
 
                     # Add to appropriate score
                     if piece.colour == "white":

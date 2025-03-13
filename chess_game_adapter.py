@@ -59,180 +59,164 @@ class ChessGameAdapter:
         logger.info("  0 1 2 3 4 5 6 7")
         logger.info(f"Current player turn: {self.chess_board.player_turn}")
 
-    def is_terminal(self, state_or_node):
+    def is_terminal(self, board):
         """Check if the state represents a terminal state"""
-        state = GameState.from_node_or_state(state_or_node)
-        if not isinstance(state, GameState):
-            return False
+        return board.game_over()
 
-        temp_board = copy.deepcopy(self.chess_board)
-        temp_board.board = state.board
-        temp_board.player_turn = state.player_turn
-        return temp_board.game_over()
-
-    def get_legal_moves(self, state_or_node):
+    def get_legal_moves(self, board):
         """Get all legal moves from the current state"""
-        # Convert to GameState if needed
-        state = GameState.from_node_or_state(state_or_node)
+        try:
+            all_moves = []
+            # Find king position first
+            king_position = None
+            for i in range(8):
+                for j in range(8):
+                    piece = board.board[i][j]
+                    if (
+                        piece
+                        and piece.__class__.__name__ == "King"
+                        and piece.colour == board.player_turn
+                    ):
+                        king_position = (i, j)
+                        break
+                if king_position:
+                    break
 
-        if not isinstance(state, GameState):
-            logger.warning(f"Expected GameState, got {type(state).__name__}")
+            if not king_position:
+                logger.warning(f"No {board.player_turn} king found on the board")
+                return []
+
+            # Check if we're currently in check
+            current_check_status = board.are_you_in_check(board.player_turn)
+            logger.debug(f"Current check status: {current_check_status}")
+
+            # Get all potential moves
+            for x in range(8):
+                for y in range(8):
+                    piece = board.board[x][y]
+                    if piece and piece.colour == board.player_turn:
+                        # Get valid moves using the piece's method directly
+                        valid_moves = piece.get_valid_moves(board.board, x, y)
+                        for move in valid_moves:
+                            # Create a temporary board to test the move
+                            temp_board = board.clone()
+                            if temp_board.move_piece(x, y, move[0], move[1]):
+                                # If we're in check, only add moves that get us out of check
+                                if current_check_status > 0:
+                                    if (
+                                        temp_board.are_you_in_check(board.player_turn)
+                                        == 0
+                                    ):
+                                        all_moves.append(((x, y), move))
+                                        logger.debug(
+                                            f"Found escape move from check: ({x},{y}) to {move}"
+                                        )
+                                else:
+                                    # If we're not in check, add moves that don't put us in check
+                                    if (
+                                        temp_board.are_you_in_check(board.player_turn)
+                                        == 0
+                                    ):
+                                        all_moves.append(((x, y), move))
+
+            if not all_moves:
+                if current_check_status > 0:
+                    logger.warning(
+                        "No legal moves found to escape check - possible checkmate"
+                    )
+                else:
+                    logger.warning("No legal moves found - possible stalemate")
+
+            # Prioritize moves that capture pieces or control the center
+            def move_score(move):
+                from_pos, to_pos = move
+                to_x, to_y = to_pos
+                # Check if move captures a piece
+                target_piece = board.board[to_x][to_y]
+                score = 0
+                if target_piece:
+                    score += target_piece.weight * 10  # Prioritize captures
+                # Bonus for controlling center squares
+                if 2 <= to_x <= 5 and 2 <= to_y <= 5:
+                    score += 5
+                return score
+
+            # Sort moves by score, highest first
+            all_moves.sort(key=move_score, reverse=True)
+            return all_moves
+
+        except Exception as e:
+            logger.error(f"Error in get_legal_moves: {e}\n{traceback.format_exc()}")
             return []
 
-        # Copy board configuration
-        temp_board = copy.deepcopy(self.chess_board)
-        temp_board.board = state.board
-        temp_board.player_turn = state.player_turn  # Make sure this is set correctly
-
-        logger.info(f"Finding moves for player: {temp_board.player_turn}")
-
-        # Count pieces by color for debugging
-        white_pieces = sum(
-            1
-            for row in temp_board.board
-            for piece in row
-            if piece and piece.colour == "white"
-        )
-        black_pieces = sum(
-            1
-            for row in temp_board.board
-            for piece in row
-            if piece and piece.colour == "black"
-        )
-        logger.debug(f"Pieces on board: {white_pieces} white, {black_pieces} black")
-
-        # Get all valid moves for each piece of the current player's color
-        all_moves = []
-        for from_x in range(8):
-            for from_y in range(8):
-                piece = temp_board.board[from_x][from_y]
-                # Ensure pieces exist and are of the correct color
-                if piece and piece.colour == temp_board.player_turn:
-                    try:
-                        # Get valid moves for this piece
-                        valid_moves = piece.get_valid_moves(
-                            temp_board.board, from_x, from_y
-                        )
-                        # Add moves in the format ((from_x, from_y), (to_x, to_y))
-                        piece_moves = [((from_x, from_y), move) for move in valid_moves]
-                        all_moves.extend(piece_moves)
-
-                        if valid_moves:
-                            logger.info(
-                                f"Found {len(valid_moves)} moves for {piece.colour} {piece.__class__.__name__} at ({from_x}, {from_y}): {valid_moves}"
-                            )
-                    except Exception as e:
-                        logger.error(
-                            f"Error getting moves for {piece.colour} {piece.__class__.__name__} at ({from_x},{from_y}): {e}"
-                        )
-
-        logger.info(f"Found {len(all_moves)} total legal moves for {state.player_turn}")
-        return all_moves
-
-    def apply_move(self, state_or_node, move):
-        """Apply a move to a state and return new GameState"""
-        state = GameState.from_node_or_state(state_or_node)
-        if not isinstance(state, GameState):
-            logger.warning("Cannot apply move: Input is not a GameState")
-            return None
-
+    def apply_move(self, board, move):
+        """Apply a move to a state and return new state"""
         try:
-            new_state = state.clone()
+            new_board = board.clone()
             from_pos, to_pos = move
-
-            # Debug information
-            logger.debug(f"Applying move: {from_pos} -> {to_pos}")
-
-            # Validate positions
-            if not (0 <= from_pos[0] < 8 and 0 <= from_pos[1] < 8) or not (
-                0 <= to_pos[0] < 8 and 0 <= to_pos[1] < 8
-            ):
-                logger.warning("Move is out of bounds")
-                return None
-
-            # Get the piece at the source position
-            piece = new_state.board[from_pos[0]][from_pos[1]]
-            if not piece:
-                logger.warning(f"No piece at source position {from_pos}")
-                return None
-
-            # Verify that the piece belongs to the current player
-            if piece.colour != new_state.player_turn:
-                logger.warning(
-                    f"Piece at {from_pos} is {piece.colour} but it's {new_state.player_turn}'s turn"
-                )
-                return None
-
-            # Verify that the move is valid for this piece
-            valid_moves = piece.get_valid_moves(
-                new_state.board, from_pos[0], from_pos[1]
-            )
-            if to_pos not in valid_moves:
-                logger.warning(
-                    f"Move to {to_pos} is not valid for {piece.__class__.__name__} at {from_pos}"
-                )
-                return None
-
-            # Apply the move
-            logger.info(
-                f"Moving {piece.__class__.__name__} from {from_pos} to {to_pos}"
-            )
-            new_state.board[to_pos[0]][to_pos[1]] = piece
-            new_state.board[from_pos[0]][from_pos[1]] = None
-
-            # Switch turns
-            new_state.player_turn = "black" if state.player_turn == "white" else "white"
-
-            return new_state
-
+            if new_board.move_piece(from_pos[0], from_pos[1], to_pos[0], to_pos[1]):
+                return new_board
+            return None
         except Exception as e:
             logger.error(f"Error applying move: {e}")
-            logger.debug(traceback.format_exc())
             return None
 
-    def get_reward(self, state_or_node, is_white):
-        """Calculate the reward for a terminal state"""
+    def get_reward(self, board, is_white):
+        """Calculate the reward for the current board state."""
         try:
-            state = GameState.from_node_or_state(state_or_node)
-            if not isinstance(state, GameState) or not state.board:
-                logger.warning(f"Invalid state in get_reward: {type(state).__name__}")
-                return 0
+            # Find king position for the current player
+            king_color = "white" if is_white else "black"
+            king_position = None
+            for i in range(8):
+                for j in range(8):
+                    piece = board.board[i][j]
+                    if (
+                        piece
+                        and piece.__class__.__name__ == "King"
+                        and piece.colour == king_color
+                    ):
+                        king_position = (i, j)
+                        break
+                if king_position:
+                    break
 
-            # Validate board structure
-            if len(state.board) != 8 or any(len(row) != 8 for row in state.board):
-                logger.warning("Invalid board dimensions in get_reward")
-                return 0
+            if not king_position:
+                logger.warning(f"No {king_color} king found on the board")
+                return 0.0
 
-            temp_board = copy.deepcopy(self.chess_board)
-            temp_board.board = state.board
-            temp_board.player_turn = state.player_turn
+            # Check for checkmate using the king's position
+            if board.is_checkmate(is_white, king_position):
+                return -1.0  # Loss
 
-            # Check for checkmate conditions
-            try:
-                if temp_board.are_you_in_check("black" if is_white else "white") == 2:
-                    # Checkmate in favor of the current player
-                    return 1.0
-                elif temp_board.are_you_in_check("white" if is_white else "black") == 2:
-                    # Checkmate against the current player
-                    return -1.0
-            except Exception as check_error:
-                logger.error(f"Error checking for checkmate: {check_error}")
-                # Continue to board evaluation if checkmate check fails
+            # Find opponent's king position
+            opponent_king_position = None
+            opponent_color = "black" if is_white else "white"
+            for i in range(8):
+                for j in range(8):
+                    piece = board.board[i][j]
+                    if (
+                        piece
+                        and piece.__class__.__name__ == "King"
+                        and piece.colour == opponent_color
+                    ):
+                        opponent_king_position = (i, j)
+                        break
+                if opponent_king_position:
+                    break
 
-            # Use board evaluation for non-terminal or draw states
-            try:
-                return (
-                    eval_board(
-                        state.board,
-                        "white" if is_white else "black",
-                        score_normalised=False,
-                    )
-                    / 100.0
-                )  # Normalize evaluation
-            except Exception as eval_error:
-                logger.error(f"Error in board evaluation: {eval_error}")
-                return 0.0  # Neutral score on error
+            if opponent_king_position and board.is_checkmate(
+                not is_white, opponent_king_position
+            ):
+                return 1.0  # Win
+
+            # Get position evaluation from eval_board
+            score = eval_board(
+                board.board, "white" if is_white else "black", score_normalised=True
+            )
+
+            # Return normalized score between -1 and 1
+            return score
 
         except Exception as e:
-            logger.error(f"Error in get_reward: {e}")
-            return 0.0  # Safe default value
+            logger.error(f"Error in get_reward: {e}\n{traceback.format_exc()}")
+            return 0.0  # Return neutral score on error
