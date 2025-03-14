@@ -154,6 +154,8 @@ if __name__ == "__main__":
         else:
             server_url = sys.argv[1]
 
+        server_url = "ws://localhost:8000/ws"
+
         # Add client ID to the WebSocket URL
         client_id = str(uuid.uuid4())
         if not server_url.endswith("/"):

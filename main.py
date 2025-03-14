@@ -1,6 +1,7 @@
 import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from online.networked_chess_board import NetworkedChessBoard
 import json
 import sys
@@ -64,10 +65,21 @@ def read_root():
     return {"message": "Welcome to the Chess API"}
 
 
-@app.get("test")
+@app.get("/test", response_class=HTMLResponse)
 def test():
-    return {"message": "Server is up!"}
-
+    # return a simple html
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Test Page</title>
+    </head>
+    <body>
+        <h1>Hello, world!</h1>
+        <p>This is a test page.</p>
+    </body>
+    </html>
+    """
 
 # Initialize the chessboard globally
 chess_board = NetworkedChessBoard(is_server=True)
@@ -144,7 +156,6 @@ if __name__ == "__main__":
         logger.critical(f"Unhandled exception: {e}")
         if SENTRY_INITIALIZED:
             import sentry_sdk
-
             sentry_sdk.capture_exception(e)
         logger.exception("Application crashed")
         sys.exit(1)
