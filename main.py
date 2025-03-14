@@ -64,6 +64,11 @@ def read_root():
     return {"message": "Welcome to the Chess API"}
 
 
+@app.get("test")
+def test():
+    return {"message": "Server is up!"}
+
+
 # Initialize the chessboard globally
 chess_board = NetworkedChessBoard(is_server=True)
 
