@@ -6,7 +6,7 @@ import os
 import sentry_sdk
 from logging import getLogger
 import time
-from sentry_sdk import configure_scope, set_tag
+from sentry_sdk import get_current_scope
 
 logger = getLogger(__name__)
 
@@ -15,8 +15,8 @@ class DBConnector:
     def __init__(self, env=True):
         try:
             # Set database context for Sentry
-            with configure_scope() as scope:
-                scope.set_tag("database.connection", "initializing")
+            scope = get_current_scope()
+            scope.set_tag("database.connection", "initializing")
 
             if env:
                 dotenv.load_dotenv()
@@ -33,27 +33,32 @@ class DBConnector:
                 self.DATABASE_URL = "postgresql://postgres@localhost/userauth"
 
             # Update database context
-            with configure_scope() as scope:
-                scope.set_tag(
-                    "database.url", self.DATABASE_URL.split("@")[-1]
-                )  # Only log host/db, not credentials
+            scope = get_current_scope()
+            scope.set_tag(
+                "database.url", self.DATABASE_URL.split("@")[-1]
+            )  # Only log host/db, not credentials
 
-            # Create connection pool
+            # Create connection pool without search_path option
             self.pool = psycopg2.pool.SimpleConnectionPool(1, 10, self.DATABASE_URL)
             if not self.pool:
                 raise Exception("Failed to create connection pool")
 
-            # Get initial connection to verify everything works
+            # Get initial connection and create schema if needed
             self.conn = self.pool.getconn()
             self.cursor = self.conn.cursor()
 
+            # Create schema if it doesn't exist and set search path
+            self.cursor.execute("CREATE SCHEMA IF NOT EXISTS public")
+            self.cursor.execute("SET search_path TO public")
+            self.conn.commit()
+
             # Set successful connection tag
-            with configure_scope() as scope:
-                scope.set_tag("database.connection", "connected")
+            scope = get_current_scope()
+            scope.set_tag("database.connection", "connected")
 
         except Exception as e:
-            with configure_scope() as scope:
-                scope.set_tag("database.connection", "failed")
+            scope = get_current_scope()
+            scope.set_tag("database.connection", "failed")
             logger.error(f"Failed to initialize database connection: {e}")
             sentry_sdk.capture_exception(e)
             raise
@@ -71,6 +76,8 @@ class DBConnector:
                 if not self.conn or self.conn.closed:
                     self.conn = self.pool.getconn()
                     self.cursor = self.conn.cursor()
+                    self.cursor.execute("SET search_path TO public")
+                    self.conn.commit()
         except Exception as e:
             logger.error(f"Database connection error: {e}")
             sentry_sdk.capture_exception(e)
@@ -149,7 +156,7 @@ class DBConnector:
         try:
             c = self.conn.cursor()
             c.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE IF NOT EXISTS public.users (
                 id serial PRIMARY KEY,
                 username TEXT,
                 password_hash TEXT,
@@ -218,7 +225,7 @@ class DBConnector:
         try:
             c = self.conn.cursor()
             c.execute("""
-            CREATE TABLE IF NOT EXISTS logins (
+            CREATE TABLE IF NOT EXISTS public.logins (
                 id serial PRIMARY KEY,
                 username TEXT,
                 time numeric
@@ -280,7 +287,7 @@ class DBConnector:
             ) as span:
                 c = self.conn.cursor()
                 c.execute("""
-                    CREATE TABLE IF NOT EXISTS games (
+                    CREATE TABLE IF NOT EXISTS public.games (
                         id SERIAL PRIMARY KEY,
                         player1 TEXT,
                         player2 TEXT,

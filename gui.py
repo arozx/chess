@@ -1,11 +1,10 @@
 import configparser
 import time
 import sys
-import traceback
 from logging_config import configure_logging, get_logger
 from sentry_config import init_sentry
 import sentry_sdk
-from sentry_sdk import configure_scope, set_tag
+from sentry_sdk import get_current_scope
 from performance_monitoring import (
     track_performance,
     measure_operation,
@@ -30,7 +29,6 @@ from PyQt5.QtGui import QPixmap
 # From the application
 from chess_board_1 import ChessBoard
 from postgres_auth import DBConnector
-from mcts import MCTS
 
 # Initialize Sentry first
 init_sentry()
@@ -77,9 +75,9 @@ class ChessBoardUI(QMainWindow):
             logger.info("Initializing Chess Game UI")
 
             # Set UI context for Sentry
-            with configure_scope() as scope:
-                scope.set_tag("component", "frontend")
-                scope.set_tag("ui_state", "initializing")
+            scope = get_current_scope()
+            scope.set_tag("component", "frontend")
+            scope.set_tag("ui_state", "initializing")
 
             self.setWindowTitle("Chess Game")
             self.setGeometry(100, 100, 900, 600)
@@ -97,8 +95,7 @@ class ChessBoardUI(QMainWindow):
             self.init_game_state()
 
             # Set UI ready state
-            with configure_scope() as scope:
-                scope.set_tag("ui_state", "ready")
+            scope.set_tag("ui_state", "ready")
 
     def init_game_state(self):
         """Initialize game state with Sentry monitoring"""
@@ -115,16 +112,16 @@ class ChessBoardUI(QMainWindow):
                 self.current_game_id = self.start_new_game()
 
                 # Track game state in Sentry
-                with configure_scope() as scope:
-                    scope.set_tag("game_state", "new_game")
-                    scope.set_context(
-                        "game_info",
-                        {
-                            "move_count": 0,
-                            "player_turn": "white",
-                            "selected_piece": None,
-                        },
-                    )
+                scope = get_current_scope()
+                scope.set_tag("game_state", "new_game")
+                scope.set_context(
+                    "game_info",
+                    {
+                        "move_count": 0,
+                        "player_turn": "white",
+                        "selected_piece": None,
+                    },
+                )
         except Exception as e:
             logger.error(f"Error initializing game state: {e}")
             sentry_sdk.capture_exception(e)
