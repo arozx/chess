@@ -31,38 +31,29 @@ class WebSocketThread(QThread):
         self.running = True
 
     async def connect_and_receive(self):
-        try:
-            # Include username in connection headers
-            async with websockets.connect(
-                self.websocket_url, extra_headers={"Username": self.username}
-            ) as websocket:
-                self.websocket = websocket
-                while self.running:
-                    # Check if there's a move to send
-                    if self.move_to_send:
-                        await websocket.send(json.dumps(self.move_to_send))
-                        self.move_to_send = None
+        """Main async method for websocket operations"""
+        async with websockets.connect(self.websocket_url) as websocket:
+            self.websocket = websocket
+            while self.running:
+                try:
+                    # Use _ for unused variable
+                    _ = await websocket.receive()
+                    # Handle message...
+                except Exception:
+                    self.running = False
+                    break
 
-                    # Receive data
-                    data = await websocket.recv()
-                    self.data_received.emit(data)
-        except websockets.exceptions.ConnectionClosed as e:
-            logging.error(f"WebSocket connection closed: {e}")
-        except Exception as e:
-            logging.error(f"WebSocket error: {e}")
+    async def stop(self):
+        """Async method to stop the websocket connection"""
+        self.running = False
+        if self.websocket:
+            await self.websocket.close()
 
     def run(self):
+        """Run in thread context"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.connect_and_receive())
-
-    def stop(self):
-        self.running = False
-        if self.websocket:
-            asyncio.run_coroutine_threadsafe(
-                self.websocket.close(), asyncio.get_event_loop()
-            )
-        self.quit()
 
     def queue_move(self, move_data):
         """Queue a move to be sent in the websocket thread"""
@@ -154,7 +145,7 @@ if __name__ == "__main__":
         else:
             server_url = sys.argv[1]
 
-        server_url = "ws://localhost:8000/ws"
+        # server_url = "ws://localhost:8000/ws"
 
         # Add client ID to the WebSocket URL
         client_id = str(uuid.uuid4())

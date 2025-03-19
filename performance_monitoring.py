@@ -1,8 +1,8 @@
 import time
 import functools
 from contextlib import contextmanager
-import sentry_sdk
 from typing import Optional, Any, Callable
+from optional_dependencies import SENTRY_AVAILABLE, sentry_sdk
 
 
 def track_performance(
@@ -24,6 +24,9 @@ def track_performance(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
+            if not SENTRY_AVAILABLE:
+                return func(*args, **kwargs)
+
             transaction_name = name or f"{func.__module__}.{func.__name__}"
 
             # Start a new transaction
@@ -73,6 +76,10 @@ def measure_operation(
         with measure_operation("process_move", "chess_operation", tags={"player": "white"}):
             # code to measure
     """
+    if not SENTRY_AVAILABLE:
+        yield
+        return
+
     with sentry_sdk.start_transaction(
         op=op_type,
         name=op_name,
@@ -110,6 +117,9 @@ def track_slow_operations(threshold_seconds: float = 1.0) -> Callable:
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
+            if not SENTRY_AVAILABLE:
+                return func(*args, **kwargs)
+
             start_time = time.perf_counter()
             try:
                 result = func(*args, **kwargs)

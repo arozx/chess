@@ -6,16 +6,9 @@ The best move is returned as a array of tuples
 """
 
 import math
-import copy
 import time
 import random
 import logging
-from logging_config import get_logger
-from performance_monitoring import (
-    track_performance,
-    measure_operation,
-    track_slow_operations,
-)
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 from eval_board import eval_board
@@ -26,6 +19,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 class Node:
     def __init__(self, state, parent=None, move_from_parent=None):

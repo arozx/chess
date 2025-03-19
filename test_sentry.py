@@ -16,6 +16,7 @@ except ImportError:
     SENTRY_AVAILABLE = False
     logger.warning("Sentry SDK not available. Tests will run without error tracking.")
 
+
 def run_test_sequence(window):
     """Run a sequence of test actions"""
     try:

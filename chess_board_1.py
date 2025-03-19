@@ -2,6 +2,10 @@ import chess
 import time
 import csv
 import copy
+import uuid
+import os
+import io
+
 import sentry_sdk
 from logging_config import get_logger
 from performance_monitoring import (
@@ -13,15 +17,13 @@ from dotenv import load_dotenv
 from chess import pgn
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
-import io
-import uuid
-import os
 
 # Load environment variables
 load_dotenv()
 
 # Configure logging
 logger = get_logger(__name__)
+
 
 # Configure Sentry with user identification
 def configure_sentry():
@@ -132,7 +134,7 @@ class ChessBoard:
         try:
             with sentry_sdk.start_span(
                 op="chess.load_openings", description="Loading chess openings"
-            ) as span:
+            ) as _:
                 logger.info(f"Loading openings from {file_path}")
                 openings = {}
                 logger.info(f"path: {file_path}")
@@ -153,7 +155,7 @@ class ChessBoard:
         try:
             with sentry_sdk.start_span(
                 op="chess.get_opening", description="Get current opening"
-            ) as span:
+            ) as _:
                 current_moves = " ".join(self.get_epd())
                 for moves, name in self.openings.items():
                     if current_moves.startswith(moves):
@@ -175,7 +177,7 @@ class ChessBoard:
         try:
             with sentry_sdk.start_span(
                 op="chess.get_epd", description="Get EPD notation"
-            ) as span:
+            ) as _:
                 board = chess.Board(self.board_array_to_fen())
                 epd = board.epd()
                 logger.debug(f"EPD: {epd}")
@@ -194,7 +196,7 @@ class ChessBoard:
         try:
             with sentry_sdk.start_span(
                 op="chess.get_valid_moves", description="Get all valid moves"
-            ) as span:
+            ) as _:
                 board = chess.Board(self.board_array_to_fen())
                 valid_moves = [move.uci() for move in board.legal_moves]
                 logger.debug(f"All valid moves: {valid_moves}")
@@ -213,7 +215,7 @@ class ChessBoard:
         try:
             with sentry_sdk.start_span(
                 op="chess.board_to_fen", description="Convert board to FEN"
-            ) as span:
+            ) as _:
                 board = chess.Board()
                 board.clear_board()
                 for rank in range(8):
@@ -239,7 +241,7 @@ class ChessBoard:
         try:
             with sentry_sdk.start_span(
                 op="chess.board_to_pgn", description="Convert board to PGN"
-            ) as span:
+            ) as _:
                 board = chess.Board(self.board_array_to_fen())
                 file_io = io.StringIO()
                 exporter = pgn.FileExporter(file_io)
@@ -268,7 +270,7 @@ class ChessBoard:
         try:
             with sentry_sdk.start_span(
                 op="chess.get_material", description=f"Get material count for {colour}"
-            ) as span:
+            ) as _:
                 material = 0
                 for x in range(8):
                     for y in range(8):
@@ -771,8 +773,8 @@ class ChessBoard:
         try:
             with sentry_sdk.start_span(
                 op="chess.check_status", description=f"Check status for {player_colour}"
-            ) as span:
-                span.set_tag("player_color", player_colour)
+            ) as _:
+                _.set_tag("player_color", player_colour)
 
                 king_position = self.get_king_position(player_colour)
                 if not king_position:
@@ -822,9 +824,9 @@ class ChessBoard:
             with sentry_sdk.start_span(
                 op="chess.checkmate_check",
                 description=f"Check checkmate for {player_colour}",
-            ) as span:
-                span.set_tag("player_color", player_colour)
-                span.set_tag("king_position", f"{king_position[0]},{king_position[1]}")
+            ) as _:
+                _.set_tag("player_color", player_colour)
+                _.set_tag("king_position", f"{king_position[0]},{king_position[1]}")
 
                 king_x, king_y = king_position
                 logger.debug(
@@ -953,9 +955,6 @@ class ChessBoard:
             (5, 5),
         ]
         extended_center_control = 15
-
-        # Piece development and mobility
-        developed_pawn_rank = 3 if color == "white" else 4
 
         for x in range(8):
             for y in range(8):
@@ -1103,7 +1102,6 @@ class ChessBoard:
                     temp_board[i][j] = new_piece
 
         # Apply the move
-        captured_piece = temp_board[end_x][end_y]
         temp_board[end_x][end_y] = temp_board[start_x][start_y]
         temp_board[start_x][start_y] = None
 

@@ -3,6 +3,7 @@ from logging_config import get_logger
 # Get logger
 logger = get_logger(__name__)
 
+
 def eval_board(board, player_colour, score_normalised=False):
     """
     Evaluate the board from the perspective of the given player color

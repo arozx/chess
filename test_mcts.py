@@ -1,8 +1,6 @@
 import unittest
 from mcts import Node, MCTS
 from pieces import Rook, Knight, Bishop, Queen, King, Pawn
-import time
-import logging
 from game_state import GameState
 
 

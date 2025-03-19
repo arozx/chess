@@ -9,6 +9,10 @@ from logging_config import configure_logging
 from PyQt5.QtWidgets import QApplication
 from gui import ChessBoardUI
 
+import dotenv
+import os
+from contextlib import asynccontextmanager
+
 # Configure logging first
 logger = configure_logging()
 
@@ -23,18 +27,54 @@ except ImportError:
     )
     SENTRY_INITIALIZED = False
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+dotenv.load_dotenv()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle startup/shutdown events"""
+    logger.info("Starting up...")
+    await startup_event()
+    yield
+    logger.info("Shutting down...")
+
+
+# Create FastAPI app instance first
+app = FastAPI(lifespan=lifespan)
+
+# Then add middleware based on environment
+match os.getenv("ENVIRONMENT"):
+    case "production":
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[
+                "https://appori2n7.azurewebsites.net/",
+                "http://appori2n7.azurewebsites.net/",
+            ],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    case "development":
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["http://localhost:8080", "https://localhost:8080"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    case _:
+        logger.warning("Origins not configured using all origins")
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
 
 class ConnectionManager:
@@ -81,10 +121,11 @@ def test():
     </html>
     """
 
+
 # Initialize the chessboard globally
 chess_board = NetworkedChessBoard(is_server=True)
 
-@app.on_event("startup")
+
 async def startup_event():
     """
     This will be called when FastAPI starts.
@@ -99,6 +140,7 @@ async def startup_event():
             import sentry_sdk
 
             sentry_sdk.capture_exception(e)
+
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
@@ -129,6 +171,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         logger.error(f"Error: {e}")
         if SENTRY_INITIALIZED:
             import sentry_sdk
+
             sentry_sdk.capture_exception(e)
         manager.disconnect(client_id)
 
@@ -149,6 +192,7 @@ def main():
             sentry_sdk.capture_exception(e)
         raise
 
+
 if __name__ == "__main__":
     try:
         sys.exit(main())
@@ -156,6 +200,7 @@ if __name__ == "__main__":
         logger.critical(f"Unhandled exception: {e}")
         if SENTRY_INITIALIZED:
             import sentry_sdk
+
             sentry_sdk.capture_exception(e)
         logger.exception("Application crashed")
         sys.exit(1)

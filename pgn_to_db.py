@@ -34,6 +34,7 @@ db = DBConnector(env=False)
 # create the tables
 db.create_games_table()
 
+
 def count_games_in_pgn(file_path):
     with open(file_path) as pgn:
         count = 0

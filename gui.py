@@ -36,22 +36,24 @@ init_sentry()
 # Configure logging
 logger = get_logger(__name__)
 
+
 class ChessPiece(QLabel):
     """
     Creates a QLabel widget to display a chess piece
     """
+
     def __init__(self, parent=None, piece=None):
         try:
             with sentry_sdk.start_span(
                 op="ui.create_piece", description="Create chess piece widget"
-            ) as span:
+            ) as _:
                 super().__init__(parent)
                 self.setFixedSize(60, 60)
                 self.setAlignment(Qt.AlignCenter)
                 self.setStyleSheet("background-color: transparent;")
                 if piece:
-                    span.set_tag("piece_type", piece.__class__.__name__)
-                    span.set_tag("piece_color", piece.colour)
+                    _.set_tag("piece_type", piece.__class__.__name__)
+                    _.set_tag("piece_color", piece.colour)
                     pixmap = QPixmap(
                         f"media/{piece.colour}/{piece.__class__.__name__.upper()[0:1]}{piece.__class__.__name__.lower()[1::]}.svg"
                     )
@@ -69,6 +71,7 @@ class ChessBoardUI(QMainWindow):
     """
     Main window for the chess game
     """
+
     def __init__(self):
         with measure_operation("init_ui", "ui_initialization"):
             super().__init__()
@@ -134,7 +137,7 @@ class ChessBoardUI(QMainWindow):
         try:
             with sentry_sdk.start_span(
                 op="db.start_game", description="Start new game"
-            ) as span:
+            ) as _:
                 # Save initial board state
                 self.db_connector.insert_game(
                     self.player1,
@@ -151,9 +154,7 @@ class ChessBoardUI(QMainWindow):
         Save the final game state to the database
         """
         try:
-            with sentry_sdk.start_span(
-                op="db.end_game", description="End game"
-            ) as span:
+            with sentry_sdk.start_span(op="db.end_game", description="End game") as _:
                 # Save final board state
                 self.db_connector.insert_game(
                     self.player1,
@@ -211,9 +212,9 @@ class ChessBoardUI(QMainWindow):
         try:
             with sentry_sdk.start_span(
                 op="gui.handle_login", description="Handle user login"
-            ) as span:
+            ) as _:
                 username = self.username_input.text()
-                span.set_tag("username", username)
+                _.set_tag("username", username)
                 logger.info(f"Login attempt: {username}")
 
                 if self.db_connector.verify_user(username, self.password_input.text()):
@@ -320,9 +321,9 @@ class ChessBoardUI(QMainWindow):
             with sentry_sdk.start_span(
                 op="ui.handle_click",
                 description=f"Handle board click at ({row}, {col})",
-            ) as span:
-                span.set_tag("click_position", f"{row},{col}")
-                span.set_tag("player_turn", self.chess_board.player_turn)
+            ) as _:
+                _.set_tag("click_position", f"{row},{col}")
+                _.set_tag("player_turn", self.chess_board.player_turn)
 
                 # Start transaction for move attempt
                 with sentry_sdk.start_transaction(
@@ -392,19 +393,19 @@ class ChessBoardUI(QMainWindow):
         try:
             with sentry_sdk.start_span(
                 op="ui.move_piece", description="Move chess piece"
-            ) as span:
+            ) as _:
                 if source_row is None or source_col is None:
                     source_row, source_col = self.selected_pos
 
-                span.set_tag("source", f"{source_row},{source_col}")
-                span.set_tag("target", f"{target_row},{target_col}")
-                span.set_tag("player_turn", self.chess_board.player_turn)
+                _.set_tag("source", f"{source_row},{source_col}")
+                _.set_tag("target", f"{target_row},{target_col}")
+                _.set_tag("player_turn", self.chess_board.player_turn)
 
                 # Track move attempt
                 piece = self.chess_board.board[source_row][source_col]
                 if piece:
-                    span.set_tag("piece_type", piece.__class__.__name__)
-                    span.set_tag("piece_color", piece.colour)
+                    _.set_tag("piece_type", piece.__class__.__name__)
+                    _.set_tag("piece_color", piece.colour)
 
                 move_start_time = time.time()
                 move_success = self.chess_board.move_piece(
@@ -413,8 +414,8 @@ class ChessBoardUI(QMainWindow):
                 move_duration = time.time() - move_start_time
 
                 # Track move performance
-                span.set_data("move_duration", move_duration)
-                span.set_data("move_success", move_success)
+                _.set_data("move_duration", move_duration)
+                _.set_data("move_success", move_success)
 
                 if move_success:
                     self.update_ui_after_move(
@@ -530,53 +531,6 @@ class ChessBoardUI(QMainWindow):
             if self.chess_board.player_turn != "black":
                 logger.debug("Not AI's turn yet (AI plays as black)")
                 return
-
-            with measure_operation("ai_setup", "ai_initialization") as span:
-                from chess_game_adapter import ChessGameAdapter
-                game_adapter = ChessGameAdapter(self.chess_board)
-                span.set_tag("board_state", str(self.chess_board.get_epd()))
-                span.set_tag("move_count", self.chess_board.move_count)
-
-            # Calculate AI move with performance tracking
-            with measure_operation(
-                "ai_calculation",
-                "ai_processing",
-                tags={"move_count": self.chess_board.move_count},
-            ) as span:
-                # ... existing AI move calculation code ...
-
-                # Track move application
-                with measure_operation(
-                    "apply_ai_move",
-                    "move_execution",
-                    tags={
-                        "source": f"{source_row},{source_col}",
-                        "target": f"{target_row},{target_col}",
-                    },
-                ) as move_span:
-                    result = self.chess_board.move_piece(
-                        source_row,
-                        source_col,
-                        target_row,
-                        target_col,
-                    )
-                    move_span.set_data("move_success", result)
-
-                if result:
-                    # Track UI update
-                    with measure_operation("update_ui", "ui_update"):
-                        self.update_ui_after_move(
-                            source_row,
-                            source_col,
-                            target_row,
-                            target_col,
-                        )
-                else:
-                    logger.warning("Chess board rejected the AI move")
-                    sentry_sdk.capture_message(
-                        "AI move rejected by chess board",
-                        level="error",
-                    )
 
         except Exception as e:
             logger.error(f"Error in AI move: {e}")
