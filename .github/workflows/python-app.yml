@@ -3,8 +3,22 @@ name: Build and Test with SonarQube Analysis
 on:
   push:
     branches: ["*"]
+    paths-ignore:
+      - '**.md'
+      - 'media/**'
+      - 'openings/**'
+      - 'terraform/**'
+      - '.dockerignore'
+      - '.gitignore'
   pull_request:
     branches: ["*"]
+    paths-ignore:
+      - '**.md'
+      - 'media/**'
+      - 'openings/**'
+      - 'terraform/**'
+      - '.dockerignore'
+      - '.gitignore'
 
 jobs:
   # Job to set up dependencies and cache Python packages
