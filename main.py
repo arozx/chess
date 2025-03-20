@@ -52,7 +52,6 @@ match os.getenv("ENVIRONMENT"):
             CORSMiddleware,
             allow_origins=[
                 "https://appori2n7.azurewebsites.net/",
-                "http://appori2n7.azurewebsites.net/",
             ],
             allow_credentials=True,
             allow_methods=["*"],
