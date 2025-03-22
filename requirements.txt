@@ -17,3 +17,4 @@ gunicorn
 websockets
 requests
 sentry-sdk
+argon2-cffi

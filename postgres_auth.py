@@ -1,6 +1,7 @@
 import os
-import hashlib
 import dotenv
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from optional_dependencies import (
     SENTRY_AVAILABLE,
     PSYCOPG2_AVAILABLE,
@@ -195,8 +196,7 @@ class DBConnector:
                 id serial PRIMARY KEY,
                 username TEXT,
                 password_hash TEXT,
-                salt TEXT,
-                UNIQUE(salt, username)
+                UNIQUE(username)
             )"""
             )
             self.conn.commit()
@@ -213,61 +213,53 @@ class DBConnector:
     returns N/A
     """
 
+
     def insert_user(self, username, password):
         try:
+            ph = PasswordHasher()
+            password_hash = ph.hash(password)  # Argon2 handles salt internally
+
             if SENTRY_AVAILABLE:
                 with sentry_sdk.start_span(
                     op="db.insert_user", description=f"Insert user {username}"
-                ) as _:  # Use _ for unused span
-                    salt = os.urandom(16).hex()
-                    password_hash = hashlib.sha256(
-                        (password + salt).encode()
-                    ).hexdigest()
-                    query = f"INSERT INTO {self._get_table_name('users')} (username, password_hash, salt) VALUES (%s, %s, %s)"
-                    self.__execute_query(query, (username, password_hash, salt))
+                ) as _:
+                    query = f"INSERT INTO {self._get_table_name('users')} (username, password_hash) VALUES (%s, %s)"
+                    self.__execute_query(query, (username, password_hash))
             else:
-                salt = os.urandom(16).hex()
-                password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
-                query = f"INSERT INTO {self._get_table_name('users')} (username, password_hash, salt) VALUES (%s, %s, %s)"
-                self.__execute_query(query, (username, password_hash, salt))
+                query = f"INSERT INTO {self._get_table_name('users')} (username, password_hash) VALUES (%s, %s)"
+                self.__execute_query(query, (username, password_hash))
         except Exception as e:
             logger.error(f"Error inserting user {username}: {e}")
             if SENTRY_AVAILABLE:
                 sentry_sdk.capture_exception(e)
-            raise
-
     """
     Checks if a user is inside the database
     return N/A
     """
 
     def verify_user(self, username, password):
+        ph = PasswordHasher()
         try:
             if SENTRY_AVAILABLE:
                 with sentry_sdk.start_span(
                     op="db.verify_user", description=f"Verify user {username}"
-                ) as _:  # Use _ for unused span
-                    query = f"SELECT password_hash, salt FROM {self._get_table_name('users')} WHERE username = %s"
+                ) as _:
+                    query = f"SELECT password_hash FROM {self._get_table_name('users')} WHERE username = %s"
                     cursor = self.__execute_query(query, (username,))
                     result = cursor.fetchone()
-                    if result:
-                        stored_hash, salt = result
-                        password_hash = hashlib.sha256(
-                            (password + salt).encode()
-                        ).hexdigest()
-                        return stored_hash == password_hash
-                    return False
             else:
-                query = f"SELECT password_hash, salt FROM {self._get_table_name('users')} WHERE username = %s"
+                query = f"SELECT password_hash FROM {self._get_table_name('users')} WHERE username = %s"
                 cursor = self.__execute_query(query, (username,))
                 result = cursor.fetchone()
-                if result:
-                    stored_hash, salt = result
-                    password_hash = hashlib.sha256(
-                        (password + salt).encode()
-                    ).hexdigest()
-                    return stored_hash == password_hash
-                return False
+
+            if result:
+                stored_hash = result[0]
+                return ph.verify(stored_hash, password)
+            return False
+
+        except VerifyMismatchError:
+            logger.error(f"Error verifying user {username}: {e}")
+            return False
         except Exception as e:
             logger.error(f"Error verifying user {username}: {e}")
             if SENTRY_AVAILABLE:
