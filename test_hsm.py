@@ -1,6 +1,7 @@
 import unittest
 from hsm import HSM
 
+
 class TestHSM(unittest.TestCase):
     def setUp(self):
         self.key = "0123456789abcdef"

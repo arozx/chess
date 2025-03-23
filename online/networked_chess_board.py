@@ -1,8 +1,6 @@
 import asyncio
 import logging
-import copy
 from chess_board_1 import ChessBoard
-from pieces import Pawn, Rook, Knight, Bishop, Queen, King
 
 
 class NetworkedChessBoard(ChessBoard):

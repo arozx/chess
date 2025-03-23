@@ -3,6 +3,7 @@ from logging_config import get_logger
 # Get logger
 logger = get_logger(__name__)
 
+
 def eval_board(board, player_colour, score_normalised=False):
     """
     Evaluate the board from the perspective of the given player color
@@ -154,7 +155,7 @@ def eval_board(board, player_colour, score_normalised=False):
             max_possible_score = 40000  # Approximation of maximum score
             return score / max_possible_score
 
-        return score
+        return float(score)
 
     except Exception as e:
         logger.error(f"Error in eval_board: {e}")

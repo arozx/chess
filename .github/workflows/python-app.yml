@@ -3,8 +3,22 @@ name: Build and Test with SonarQube Analysis
 on:
   push:
     branches: ["*"]
+    paths-ignore:
+      - '**.md'
+      - 'media/**'
+      - 'openings/**'
+      - 'terraform/**'
+      - '.dockerignore'
+      - '.gitignore'
   pull_request:
     branches: ["*"]
+    paths-ignore:
+      - '**.md'
+      - 'media/**'
+      - 'openings/**'
+      - 'terraform/**'
+      - '.dockerignore'
+      - '.gitignore'
 
 jobs:
   # Job to set up dependencies and cache Python packages
@@ -13,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11"]
 
     steps:
       # Checkout repository
@@ -39,6 +53,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install sentry_sdk
 
   # Linting job
   lint:
@@ -47,7 +62,7 @@ jobs:
     needs: setup
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11"]
 
     steps:
       # Checkout repository
@@ -76,7 +91,7 @@ jobs:
     needs: setup
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11"]
     services:
       postgres:
         image: postgres:latest
@@ -104,7 +119,7 @@ jobs:
       - name: Install test dependencies
         run: |
           sudo apt-get install -y xvfb
-          pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess psycopg2 sentry_sdk
+          pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess psycopg2 sentry_sdk argon2-cffi
 
       # Run tests with coverage
       - name: Run tests with coverage
@@ -147,12 +162,20 @@ jobs:
         with:
           python-version: "3.11"
 
+      # Install SonarQube scanner and dependencies
+      - name: Install SonarQube scanner and dependencies
+        run: |
+          pip install requests
+
       # Run SonarQube analysis
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.python.coverage.reportPaths=coverage.xml
 
       # Optional: Fail job if Quality Gate fails
       # - name: SonarQube Quality Gate

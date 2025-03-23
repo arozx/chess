@@ -2,6 +2,7 @@ import unittest
 from chess_board_1 import ChessBoard
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 
+
 class TestChessBoard(unittest.TestCase):
     def setUp(self):
         self.chess_board = ChessBoard()
@@ -71,7 +72,9 @@ class TestChessBoard(unittest.TestCase):
         self.chess_board.board[0][3] = King("white")
         self.chess_board.board[0][0] = Rook("white")
         self.chess_board.board[0][4] = None
-        self.assertEqual(self.chess_board.castling(self.chess_board.board, "white"), "queenside")
+        self.assertEqual(
+            self.chess_board.castling(self.chess_board.board, "white"), "queenside"
+        )
 
     def test_are_you_in_check(self):
         self.assertEqual(self.chess_board.are_you_in_check("white"), 0)

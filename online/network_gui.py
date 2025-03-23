@@ -1,5 +1,4 @@
 import pickle
-import asyncio
 from logging import getLogger
 
 from PyQt5.QtWidgets import (
@@ -60,7 +59,8 @@ class NetworkedChessBoardUI(ChessBoardUI):
         self.move_count_label = QLabel("Move: 0")
         self.move_count_label.setStyleSheet("font-size: 12px; color: #666;")
         self.export_button = QPushButton("Export Game")
-        self.export_button.setStyleSheet("""
+        self.export_button.setStyleSheet(
+            """
             QPushButton {
                 background-color: #f0f0f0;
                 border: none;
@@ -71,7 +71,8 @@ class NetworkedChessBoardUI(ChessBoardUI):
             QPushButton:hover {
                 background-color: #e0e0e0;
             }
-        """)
+        """
+        )
 
         # Move history with clean styling
         self.move_history_label = QLabel("Move History")
@@ -160,7 +161,8 @@ class NetworkedChessBoardUI(ChessBoardUI):
 
         # Add move history labels with initial styling
         for label in self.move_history:
-            label.setStyleSheet("""
+            label.setStyleSheet(
+                """
                 font-family: 'Courier New', monospace;
                 font-size: 12px;
                 color: #333;
@@ -168,7 +170,8 @@ class NetworkedChessBoardUI(ChessBoardUI):
                 padding: 2px 5px;
                 background-color: #f8f8f8;
                 border-radius: 2px;
-            """)
+            """
+            )
             label.setMinimumWidth(250)  # Ensure label is wide enough
             history_container.addWidget(label)
 
@@ -271,7 +274,8 @@ class NetworkedChessBoardUI(ChessBoardUI):
 
             # Update move history label styling
             for label in self.move_history:
-                label.setStyleSheet("""
+                label.setStyleSheet(
+                    """
                     font-family: 'Courier New', monospace;
                     font-size: 12px;
                     color: #333;
@@ -279,7 +283,8 @@ class NetworkedChessBoardUI(ChessBoardUI):
                     padding: 2px 5px;
                     background-color: #f8f8f8;
                     border-radius: 2px;
-                """)
+                """
+                )
                 label.setMinimumWidth(250)  # Ensure label is wide enough
                 label.setAlignment(Qt.AlignLeft)
 
