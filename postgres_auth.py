@@ -1,7 +1,6 @@
 import os
 import dotenv
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
 from optional_dependencies import (
     SENTRY_AVAILABLE,
     PSYCOPG2_AVAILABLE,
@@ -213,7 +212,6 @@ class DBConnector:
     returns N/A
     """
 
-
     def insert_user(self, username, password):
         try:
             ph = PasswordHasher()
@@ -232,6 +230,7 @@ class DBConnector:
             logger.error(f"Error inserting user {username}: {e}")
             if SENTRY_AVAILABLE:
                 sentry_sdk.capture_exception(e)
+
     """
     Checks if a user is inside the database
     return N/A
@@ -257,9 +256,6 @@ class DBConnector:
                 return ph.verify(stored_hash, password)
             return False
 
-        except VerifyMismatchError:
-            logger.error(f"Error verifying user {username}: {e}")
-            return False
         except Exception as e:
             logger.error(f"Error verifying user {username}: {e}")
             if SENTRY_AVAILABLE:

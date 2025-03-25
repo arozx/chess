@@ -131,34 +131,39 @@ class ChessClient(QObject):
         self.websocket_thread.queue_move(message)
 
 
+def start_chess_client(username):
+    # Get the websocket URL
+    if len(sys.argv) != 2:
+        # use production socket
+        server_url = "wss://appori2n7.azurewebsites.net/ws"
+    else:
+        server_url = sys.argv[1]
+
+    # Add client ID to the WebSocket URL
+    client_id = str(uuid.uuid4())
+    if not server_url.endswith("/"):
+        server_url += "/"
+    full_url = server_url + client_id
+
+    # Create chess client with authenticated username
+    global client
+    client = ChessClient(full_url, username)
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # Create and show login window
-    login_window = LoginWindow()
-
-    def start_chess_client(username):
-        # Get the websocket URL
-        if len(sys.argv) != 2:
-            # use production socket
-            server_url = "wss://appori2n7.azurewebsites.net/ws"
-        else:
-            server_url = sys.argv[1]
-
-        # server_url = "ws://localhost:8000/ws"
-
-        # Add client ID to the WebSocket URL
+    # Check if running in test mode (add --test or -t flag)
+    if len(sys.argv) > 1 and sys.argv[1] in ["--test", "-t"]:
+        # Skip login and create chess client directly with test user
+        server_url = "ws://localhost:8000/ws"  # Use local test server
         client_id = str(uuid.uuid4())
-        if not server_url.endswith("/"):
-            server_url += "/"
-        full_url = server_url + client_id
-
-        # Create chess client with authenticated username
-        global client
-        client = ChessClient(full_url, username)
-
-    # Connect login success signal to start_chess_client
-    login_window.login_successful.connect(start_chess_client)
-    login_window.show()
+        full_url = f"{server_url}/{client_id}"
+        client = ChessClient(full_url, "test_user")
+    else:
+        # Normal login flow
+        login_window = LoginWindow()
+        login_window.login_successful.connect(start_chess_client)
+        login_window.show()
 
     sys.exit(app.exec_())

@@ -142,7 +142,7 @@ class ChessBoardUI(QMainWindow):
                 self.db_connector.insert_game(
                     self.player1,
                     self.player2,
-                    self.chess_board.board_array_to_fen(),  # Use board_array_to_fen instead of get_fen
+                    self.chess_board.board_array_to_fen(),
                 )
         except Exception as e:
             logger.error(f"Error starting new game: {e}")
@@ -159,7 +159,7 @@ class ChessBoardUI(QMainWindow):
                 self.db_connector.insert_game(
                     self.player1,
                     self.player2,
-                    self.chess_board.board_array_to_fen(),  # Use board_array_to_fen instead of get_fen
+                    self.chess_board.board_array_to_fen(),
                 )
         except Exception as e:
             logger.error(f"Error ending game: {e}")
@@ -174,15 +174,43 @@ class ChessBoardUI(QMainWindow):
                 self.login_widget = QWidget(self)
                 login_layout = QVBoxLayout(self.login_widget)
 
+                self.setStyleSheet("background-color: rgb(44, 44, 44);")
+
                 # Login fields
                 self.username_label = QLabel("Username:")
+                self.username_label.setStyleSheet("color: white; font-weight: bold;")
                 self.username_input = QLineEdit()
+                self.username_input.setStyleSheet(
+                    "background-color: white; color: black; padding: 5px; border-radius: 4px;"
+                )
+
                 self.password_label = QLabel("Password:")
+                self.password_label.setStyleSheet("color: white; font-weight: bold;")
                 self.password_input = QLineEdit()
+                self.password_input.setStyleSheet(
+                    "background-color: white; color: black; padding: 5px; border-radius: 4px;"
+                )
                 self.password_input.setEchoMode(QLineEdit.Password)
 
-                # Login button
                 self.login_button = QPushButton("Login")
+                self.login_button.setStyleSheet(
+                    """
+                    QPushButton {
+                        background-color: rgb(51, 51, 51);
+                        color: white;
+                        padding: 8px 16px;
+                        border: none;
+                        border-radius: 4px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: rgb(60, 60, 60);
+                    }
+                    QPushButton:pressed {
+                        background-color: rgb(40, 40, 40);
+                    }
+                """
+                )
                 self.login_button.clicked.connect(self.handle_login)
 
                 # Add widgets to layout
@@ -191,6 +219,11 @@ class ChessBoardUI(QMainWindow):
                 login_layout.addWidget(self.password_label)
                 login_layout.addWidget(self.password_input)
                 login_layout.addWidget(self.login_button)
+
+                # Center the login form
+                login_layout.setAlignment(Qt.AlignCenter)
+                login_layout.setContentsMargins(50, 50, 50, 50)
+                login_layout.setSpacing(10)
 
                 # Set the login widget as central
                 self.setCentralWidget(self.login_widget)
