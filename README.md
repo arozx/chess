@@ -37,7 +37,6 @@
         <li><a href="#images">Images</a></li>
       </ul>
     </li>
-    <li><a href="#contact">Contact</a></li>
   </ol>
 </details>
 
@@ -134,10 +133,5 @@ tox
 ## Images
 
 Images used in this project are from [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces). The images are under the Creative Commons license. Please see the individual image pages for more information on the copyright holder and the specific license conditions.
-
-<!-- CONTACT -->
-# Contact
-
-Project Link: [https://github.com/arozx/a-level_project](https://github.com/arozx/a-level_project)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
